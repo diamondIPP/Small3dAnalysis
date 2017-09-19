@@ -1,12 +1,8 @@
 from ROOT import TFile, gSystem, TStopwatch, TDatime, TTree
-from optparse import OptionParser
-from time import time
-from Settings import Settings
-from RawEventReader import RawEventReader
-from ADCEventReader import ADCEventReader
 from numpy import array, zeros
 from copy import deepcopy
 import os, logging
+import ipdb
 
 __author__ = 'DA'
 
@@ -32,7 +28,7 @@ class ADCEventReader:
 
     def OpenADCTree(self):
         temp = self.settings.OpenTree(self.settings.GetRawTreeFilePath(), 'rawTree', False)
-        self.rawFile, self.rawTree, self.createdNewFile, self.createdNewTree = deepcopy(temp)
+        self.rawFile, self.rawTree, self.createdNewFile, self.createdNewTree = temp
 
     def SetBranches(self):
         if self.rawTree.FindBranch('D0X_ADC'):
@@ -71,10 +67,15 @@ class ADCEventReader:
 
     def LoadEtaDistributions(self):
         temp = self.settings.OpenFile(self.settings.GetEtaIntegralFilePath(), True)
-        self.etaIntegralFile, createdFile = deepcopy(temp)
+        self.etaIntegralFile, createdFile = temp
         if createdFile:
             return
-        self.hEtaIntegralSil = {i: self.etaIntegralFile.Get('hEtaIntegral_{d}'.format(d=i) for i in xrange(self.settings.silNumDetectors))}
+        elif self.etaIntegralFile == -1:
+            del self.etaIntegralFile
+            print 'File', self.settings.GetEtaIntegralFilePath(), 'is corrupted. Deleting it and creating it again'
+            os.remove(self.settings.GetEtaIntegralFilePath())
+            self.LoadEtaDistributions()
+        self.hEtaIntegralSil = {i: self.etaIntegralFile.Get('hEtaIntegral_{d}'.format(d=i)) for i in xrange(self.settings.silNumDetectors)}
         self.hEtaIntegralDia = self.etaIntegralFile.Get('hEtaIntegral_Dia')
         return
 

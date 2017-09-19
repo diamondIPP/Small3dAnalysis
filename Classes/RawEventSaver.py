@@ -106,7 +106,7 @@ class RawEventSaver:
             self.det_ADC[det] = (self.rawEventReader.GetSilPlane(det))
         # self.det_ADC = self.rawEventReader.GetSilPlanes()
         # for ch in xrange(self.rawEventReader.diaChs):
-        self.dia_ADC = deepcopy(self.rawEventReader.GetDiaDet(self.settings.diaInput))
+        self.dia_ADC = self.rawEventReader.GetDiaDet(self.settings.diaInput)
 
 if __name__ == '__main__':
     z = RawEventSaver()

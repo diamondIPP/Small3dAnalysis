@@ -7,6 +7,7 @@ from ADCEventReader import ADCEventReader
 from numpy import array, zeros
 from copy import deepcopy
 import os, logging
+import ipdb
 
 __author__ = 'DA'
 
@@ -47,9 +48,10 @@ class HistogramSaver:
 
     def RemoveExtraBackSlashes(self, string, times=1):
         if times == 0:
-            return deepcopy(string)
+            return string
         string = string.replace('//', '/')
-        self.RemoveExtraBackSlashes(deepcopy(string), times - 1)
+        return self.RemoveExtraBackSlashes(string, times - 1)
+
 
     def UpdatePaveText(self):
         self.paveText.Clear()

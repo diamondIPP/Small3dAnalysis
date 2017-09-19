@@ -4,6 +4,7 @@ import os
 import progressbar
 from ConfigParser import ConfigParser
 from collections import namedtuple
+import ipdb
 
 class Settings:
     def __init__(self, runInfo=None, current='./', input='./', output='./', settings='./'):
@@ -14,6 +15,7 @@ class Settings:
         self.settingsDir = settings
         self.CheckDirsExistence()
         self.LoadSettings()
+        self.nEvents = self.runInfo['nEvents']
         if self.nEvents > self.totalEvents:
             print 'The run only has', self.totalEvents, 'events. Analysing only', self.totalEvents, 'events instead of', self.nEvents,'.'
             self.nEvents = self.totalEvents
@@ -21,7 +23,6 @@ class Settings:
         self.bar = None
         # TODO do self.LoadSettingsFile() that calls self.LoadDefaultSettings() when it does not exist and delete following lines:
         self.diaInput = 0  # TODO: delete!!!
-        self.nEvents = self.runInfo['nEvents']
         self.version = '0'
         self.silDetChs = 256
         self.diaDetChs = 128
@@ -52,7 +53,8 @@ class Settings:
 
     def CreateProgressBar(self, maxVal=0):
         widgets = [
-            progressbar.Percentage(),
+            'Processed: ', progressbar.Counter(),
+            ' of {mv} '.format(mv=maxVal), progressbar.Percentage(),
             ' ', progressbar.Bar(marker='>'),
             ' ', progressbar.Timer(),
             ' ', progressbar.ETA()
@@ -63,7 +65,7 @@ class Settings:
 
     def GetAbsoluteOutputPath(self):
         string = self.outputDir + '/' + str(self.runInfo['run']) + '/'
-        return deepcopy(string)
+        return string
 
     def GoToDir(self, directory):
         self.CheckDirExistence(directory, True)
@@ -82,19 +84,19 @@ class Settings:
 
     def GetRawTreeFilePath(self):
         path = self.GetAbsoluteOutputPath() + 'rawData.{r}.root'.format(r=self.runInfo['run'])
-        return deepcopy(path)
+        return path
 
     def GetAbsoluteInputPath(self):
         string = self.inputDir + '/' + str(self.runInfo['run']) + '/'
-        return deepcopy(string)
+        return string
 
     def GetPedestalTreeFilePath(self):
         path = self.GetAbsoluteOutputPath() + 'pedestalData.{r}.root'.format(r=self.runInfo['run'])
-        return deepcopy(path)
+        return path
 
     def GetEtaIntegralFilePath(self):
         path = self.GetAbsoluteOutputPath() + 'etaCorrection.{r}.root'.format(r=self.runInfo['run'])
-        return deepcopy(path)
+        return path
 
     def LoadSettings(self):
         self.LoadDefaults()
@@ -204,9 +206,9 @@ class Settings:
                 print 'Opened existing file:', filePath
         else:
             tfile = TFile(filePath, 'READ')
-        fileBool = namedtuple('File bool', 'file, boolFile')
+        fileBool = namedtuple('File_bool', ['file', 'boolFile'])
         fileBoolReturn = fileBool(tfile, created)
-        return deepcopy(fileBoolReturn)
+        return fileBoolReturn
 
     def OpenTree(self, filePath='', treeName='tree', create=True):
         if create:
@@ -238,9 +240,9 @@ class Settings:
             tfile= TFile(filePath, 'READ')
             tree = tfile.Get(treeName)
             createdNewFile, createdNewTree = False, False
-        fileTree = namedtuple('File Tree data', 'file, tree, boolFile, boolTree')
+        fileTree = namedtuple('File_Tree_data', ['file', 'tree', 'boolFile', 'boolTree'])
         fileTreeReturn = fileTree(tfile, tree, createdNewFile, createdNewTree)
-        return deepcopy(fileTreeReturn)
+        return fileTreeReturn
 
     def IsMasked(self, type='dia', det=0, ch=0):
         if type == 'dia':

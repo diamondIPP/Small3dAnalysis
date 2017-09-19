@@ -5,10 +5,11 @@ from Settings import Settings
 from RawEventReader import RawEventReader
 from ADCEventReader import ADCEventReader
 from HistogramSaver import HistogramSaver
-from numpy import array, zeros, extract, bitwise_and, full
+from numpy import array, zeros, extract, bitwise_and, full, isnan
 from collections import deque
 from copy import deepcopy
 import os, logging
+import ipdb
 
 __author__ = 'DA'
 
@@ -18,6 +19,7 @@ class PedestalCalculation:
         self.settings = settings
         self.run = array(self.settings.runInfo['run'], 'I')
         self.eventNumber = array(0, 'I')
+        self.timeFinalStart, self.timeFinalEnd = None, None
         self.verb = self.settings.runInfo['verbose']
         self.slidingLength = self.settings.bufferSize
         self.settings.GoToOutputPath()
@@ -62,7 +64,6 @@ class PedestalCalculation:
         self.pedestalCalcChs = [deque(zeros(self.slidingLength, 'f4'), self.slidingLength) for ch in xrange(self.settings.diaDetChs)]
         self.pedestalCalcChsCMC = [deque(zeros(self.slidingLength, 'f4'), self.slidingLength) for ch in xrange(self.settings.diaDetChs)]
         self.cmn_Dia = array(0, dtype='f4')
-        self.doCMC = array(0, dtype='f4')
         self.CreatePedestalTree()
         self.StartHistograms()
 
@@ -77,8 +78,8 @@ class PedestalCalculation:
         t0 = time()
         self.CalculateStartingPedestal()
         self.CalculateFirstPedestals(False, 7)
-        self.settings.CreateProgressBar(self.settings.nEvents)
-        self.settings.bar.start()
+        # self.settings.CreateProgressBar(self.settings.nEvents)
+        # self.settings.bar.start()
         self.FillFirstEvents()
         for ev in xrange(self.slidingLength, self.settings.nEvents):
             branches = ['D0X_ADC', 'D1X_ADC', 'D2X_ADC', 'D3X_ADC', 'D0Y_ADC', 'D1Y_ADC', 'D2Y_ADC', 'D3Y_ADC', 'DiaADC']
@@ -160,12 +161,12 @@ class PedestalCalculation:
                     self.meanSilValuesDeque[det][ch].extend(full(self.slidingLength, self.meanSilValues[det][ch], 'f4'))
                     self.sigmaSilValuesDeque[det][ch].extend(full(self.slidingLength, self.sigmaSilValues[det][ch], 'f4'))
             for ch in xrange(self.settings.diaDetChs):
-                self.signalDiaValuesDeque[ch] = self.diaADCValues[ch] - self.meanDiaValues[ch]
+                self.signalDiaValuesDeque[ch].extend(self.diaADCValues[ch] - self.meanDiaValues[ch])
                 self.meanDiaValuesDeque[ch].extend(full(self.slidingLength, self.meanDiaValues[ch], 'f4'))
                 self.sigmaDiaValuesDeque[ch].extend(full(self.slidingLength, self.sigmaDiaValues[ch], 'f4'))
         else:  # only calculate for diamond, as silicon does not need cmc.
             for ch in xrange(self.settings.diaDetChs):
-                self.signalDiaValuesCMCDeque[ch] = self.diaADCValuesCMC[ch] - self.meanDiaValuesCMC[ch]
+                self.signalDiaValuesCMCDeque[ch].extend(self.diaADCValuesCMC[ch] - self.meanDiaValuesCMC[ch])
                 self.meanDiaValuesCMCDeque[ch].extend(full(self.slidingLength, self.meanDiaValuesCMC[ch], 'f4'))
                 self.sigmaDiaValuesCMCDeque[ch].extend(full(self.slidingLength, self.sigmaDiaValuesCMC[ch], 'f4'))
 
@@ -174,7 +175,7 @@ class PedestalCalculation:
             for det in xrange(self.settings.silNumDetectors):
                 for ch in xrange(self.settings.silDetChs):
                     self.signalSilValuesDeque[det][ch].extend(self.detADCValues[det][ch] - self.meanSilValues[det, ch])
-                    condition = abs(self.signalSilValuesDeque[det][ch]) < self.MaxDetSigma * self.sigmaSilValues[det, ch]
+                    condition = abs(array(self.signalSilValuesDeque[det][ch])) < self.MaxDetSigma * self.sigmaSilValues[det, ch]
                     self.meanSilValues[det, ch] = extract(condition, array(self.detADCValues[det][ch], 'f')).mean()
                     self.sigmaSilValues[det, ch] = extract(condition, array(self.detADCValues[det][ch], 'f')).std()
                     # self.cmn_sil[det] = zeros(self.settings.silDetChs, 'f')
@@ -183,8 +184,8 @@ class PedestalCalculation:
                     self.silSeedChs = zeros((self.settings.silNumDetectors, self.settings.silDetChs), '?')
                     # TODO: INSERT HIT AND SEED FILL BEFORE HERE
             for ch in xrange(self.settings.diaDetChs):
-                self.signalDiaValuesDeque[ch] = self.diaADCValues[ch] - self.meanDiaValues[ch]
-                condition = abs(self.signalDiaValuesDeque[ch]) < self.MaxDiaSigma * self.sigmaDiaValues[ch]
+                self.signalDiaValuesDeque[ch].extend(self.diaADCValues[ch] - self.meanDiaValues[ch])
+                condition = abs(array(self.signalDiaValuesDeque[ch])) < self.MaxDiaSigma * self.sigmaDiaValues[ch]
                 self.meanDiaValues[ch] = extract(condition, array(self.diaADCValues[ch], 'f')).mean()
                 self.sigmaDiaValues[ch] = extract(condition, array(self.diaADCValues[ch], 'f')).std()
                 self.pedestalCalcChs[ch] = array(condition, '?')
@@ -196,8 +197,8 @@ class PedestalCalculation:
 
         else: # only calculate for diamond, as silicon does not need cmc.
             for ch in xrange(self.settings.diaDetChs):
-                self.signalDiaValuesCMCDeque[ch] = self.diaADCValuesCMC[ch] - self.meanDiaValuesCMC[ch]
-                condition = abs(self.signalDiaValuesCMCDeque[ch]) < self.MaxDiaSigma * self.sigmaDiaValuesCMC[ch]
+                self.signalDiaValuesCMCDeque[ch].extend(self.diaADCValuesCMC[ch] - self.meanDiaValuesCMC[ch])
+                condition = abs(array(self.signalDiaValuesCMCDeque[ch])) < self.MaxDiaSigma * self.sigmaDiaValuesCMC[ch]
                 self.meanDiaValuesCMC[ch] = extract(condition, array(self.diaADCValuesCMC[ch], 'f')).mean()
                 self.sigmaDiaValuesCMC[ch] = extract(condition, array(self.diaADCValuesCMC[ch], 'f')).std()
                 self.pedestalCalcChsCMC[ch] = array(condition, '?')
@@ -209,24 +210,31 @@ class PedestalCalculation:
 
     def BranchToVector(self, branch, leng, vecSize=1):
         vector = [[branch[ev*vecSize + ch] for ch in xrange(vecSize)] for ev in xrange(int(leng/vecSize))] if vecSize != 1 else [branch[ev] for ev in xrange(int(leng))]
-        return deepcopy(vector)
+        return vector
 
     def FillFirstEvents(self):
         self.diaCMNValues.clear()
         for ev in xrange(self.slidingLength):
+            self.eventNumber.fill(ev)
             self.DoCMNCalculation()
             self.diaCMNValues.append(self.cmn_Dia)
             for ch in xrange(self.settings.diaDetChs):
-                self.diaADCValuesCMC[ch].append(self.diaADCValues-self.cmn_Dia)
-                self.meanDiaValuesCMC[ch] = self.meanDiaValues[ch] - self.cmn_Dia
-                self.sigmaDiaValuesCMC[ch] = self.sigmaDiaValues[ch]
+                self.diaADCValuesCMC[ch].append(self.diaADCValues[ch][ev]-self.cmn_Dia)
+                # THE FOLLOWING 2 LIENS ARE RIDICULOUS, AS IT WILL OVERWRITE ALWAYS THE VALUE WITHOUT STORING IT AND AT THE END, THE ONLY EVENT THAT MATTERS FOR THIS IS THE LAST ONE (the last cmnvalue)
+                # self.meanDiaValuesCMC[ch] = self.meanDiaValues[ch] - self.cmn_Dia
+                # self.sigmaDiaValuesCMC[ch] = self.sigmaDiaValues[ch]
+        self.meanDiaValuesCMC = self.meanDiaValues - self.cmn_Dia
+        self.sigmaDiaValuesCMC = self.sigmaDiaValues
         self.CalculateFirstPedestals(True, 7)
+        self.settings.CreateProgressBar(self.settings.nEvents)
+        self.settings.bar.start()
+        self.timeFinalStart = time()
         for ev in xrange(self.slidingLength):
             self.eventNumber.fill(ev)
-            self.signalSilValues = self.signalSilValuesDeque[:, :, ev]
+            self.signalSilValues = array(self.signalSilValuesDeque)[:, :, ev]
             self.cmn_Dia = self.diaCMNValues[ev]
-            self.signalDiaValues = self.signalDiaValuesDeque[:, ev]
-            self.signalDiaValuesCMC = self.signalDiaValuesCMCDeque[:, ev]
+            self.signalDiaValues = array(self.signalDiaValuesDeque)[:, ev]
+            self.signalDiaValuesCMC = array(self.signalDiaValuesCMCDeque)[:, ev]
             self.pedTree.Fill()
             self.settings.bar.update(ev + 1)
 
@@ -238,7 +246,11 @@ class PedestalCalculation:
         condition2 = array(1 - self.maskDiaChs, '?')
         condition = bitwise_and(condition1, condition2)
         self.cmn_Dia.fill(extract(condition, signalVector).mean())
+        if isnan(self.cmn_Dia):
+            self.cmn_Dia.fill(0)
+            print 'There were no entries to calculate cmn_Dia in event', self.eventNumber, '. Setting value to 0, as it should be for this case.'
         self.hCMN.Fill(self.cmn_Dia)
+
 
     def UpdateSiliconPedestals(self):
         for det in xrange(self.settings.silNumDetectors):

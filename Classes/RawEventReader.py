@@ -7,6 +7,7 @@ from copy import deepcopy
 import os, logging
 import struct
 from numba import jit, autojit, jitclass
+import ipdb
 
 __author__ = 'DA'
 
@@ -51,7 +52,6 @@ class RawEventReader:
         # vFasReg, evNetTime, measNo, evInMeasNo = array(s[16:24], 'i'), s[24], s[25], s[26]
         # res, self.silTel, self.dia, eor = array(s[27:29], 'i'), array(s[29:29+self.silTelMem], 'B'), array(s[29+self.silTelMem:29+self.silTelMem+self.diaMem], 'H'), s[29+self.silTelMem+self.diaMem]
         self.silTel, self.dia = array(s[29:29+self.silTelMem], 'B'), array(s[29+self.silTelMem:29+self.silTelMem+self.diaMem], 'H')
-
         self.DecodeDetectors()
         return True
 
@@ -59,7 +59,7 @@ class RawEventReader:
         self.DecodeSiliconTelescope()
         self.DecodeDiamondDetectors()
 
-    @jit
+    # @jit
     def DecodeSiliconTelescope(self):
         for i in xrange(self.silTelChs):
             self.D0X[i] = self.silTel[i*4+3]
