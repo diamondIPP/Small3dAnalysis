@@ -13,7 +13,7 @@ import ipdb
 
 __author__ = 'DA'
 
-class PedestalCalculation:
+class PedestalCalculation2:
     def __init__(self, settings=None):
         print 'Starting Pedestal Calculation'
         self.settings = settings
@@ -377,4 +377,4 @@ class PedestalCalculation:
         self.hCMN = TH1F('CMN', 'CMN', 512, -32, 32)
 
 if __name__ == '__main__':
-    z = PedestalCalculation()
+    z = PedestalCalculation2()
