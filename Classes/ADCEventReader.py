@@ -19,6 +19,7 @@ class ADCEventReader:
         self.d0YADC, self.d1YADC, self.d2YADC, self.d3YADC = zeros(256, dtype='B'), zeros(256, dtype='B'), zeros(256, dtype='B'), zeros(256, dtype='B')
         self.diaADC = zeros(128, 'H')
         self.SetBranches()
+        self.activeBranches = ['*']
         self.LoadEvent(0)
         self.etaIntegralFile = None
         self.hEtaIntegralSil = {i: None for i in xrange(self.settings.silNumDetectors)}
@@ -55,15 +56,17 @@ class ADCEventReader:
             self.rawTree.SetBranchAddress('EventNumber', self.eventNumber)
 
     def LoadEvent(self, event=0, branches=['*']):
-        if not self.rawTree:
-            return False
-        if event <= self.rawTree.GetEntries():
+        # if not self.rawTree:
+        #     return False
+        # if event <= self.rawTree.GetEntries():
+        if self.activeBranches != branches:
             self.rawTree.SetBranchStatus('*', 0)
+            self.activeBranches = branches
             for branch in branches:
                 self.rawTree.SetBranchStatus(branch, 1)
-            self.rawTree.GetEvent(event)
-            return True
-        return False
+        self.rawTree.GetEvent(event)
+        #     return True
+        # return False
 
     def LoadEtaDistributions(self):
         temp = self.settings.OpenFile(self.settings.GetEtaIntegralFilePath(), True)
