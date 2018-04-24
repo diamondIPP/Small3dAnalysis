@@ -1,12 +1,14 @@
-from ROOT import TFile, gSystem, TStopwatch, TDatime
+# from ROOT import TFile, gSystem, TStopwatch, TDatime
+import ROOT as ro
 from optparse import OptionParser
 from time import time
 from Settings import Settings
 from RawEventSaver import RawEventSaver
 from PedestalCalculation import PedestalCalculation
-from numpy import array
+# from numpy import array
+import numpy as np
 from copy import deepcopy
-import os, logging
+import os, logging, sys
 
 __author__ = 'DA'
 
@@ -25,18 +27,18 @@ class Small3DAnalysis:
         string += 'do Transparent' if doTransparent else 'no Transparent, '
         string += 'do 3D Short' if do3D else 'no 3D Short'
         print string
-        self.currentDir = gSystem.pwd()
+        self.currentDir = ro.gSystem.pwd()
         self.runInfoFile = runinfo if runinfo != '' else 'RunList.ini'
         self.defRunInfo = {'run': int(run), 'run_des': 0, 'verbose': 0, 'nEvents': 100000, 'nStart': 0,
                         'do_pedestal_ana': doPedestal, 'do_cluster_ana': doClustering, 'do_selec_ana': doFiducial,
                         'do_align': doAlignment, 'do_align_ana': False, 'do_trans_ana': doTransparent, 'short_3D_ana': do3D, 'long_3D_ana': False}
-        self.runsInfo = None
+        self.runsInfo = []
         self.ReadRunList(self.runInfoFile)
         for runInfo in self.runsInfo:
             self.settings = Settings(runInfo, self.currentDir, input, output, settings)
-            self.runWatch = TStopwatch()
+            self.runWatch = ro.TStopwatch()
             self.runWatch.Start(True)
-            time = TDatime()
+            time = ro.TDatime()
             logging.basicConfig(filename='analysis_log_{r}_{y}_{m}_{d}_{h}.{min}.{sec}.log'.format(r=self.run, y=time.GetYear(), m=time.GetMonth(), d=time.GetDay(), h=time.GetHour(), min=time.GetMinute(), sec=time.GetSecond()), level=logging.DEBUG)
             # TODO Results class from settings
             # CREATE RAW ROOT TREE
@@ -50,7 +52,7 @@ class Small3DAnalysis:
 
     def ReadRunList(self, runinfo):
         file = runinfo if runinfo != '' else 'RunList.ini'
-        gSystem.cd(self.currentDir)
+        ro.gSystem.cd(self.currentDir)
         if os.path.isfile(file):
             with open(file) as f:
                 lines = f.readlines()

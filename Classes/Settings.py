@@ -1,6 +1,7 @@
-from ROOT import gSystem, TFile, TTree
+# from ROOT import gSystem, TFile, TTree
+import ROOT as ro
 from copy import deepcopy
-import os
+import os, sys
 import progressbar
 from ConfigParser import ConfigParser
 from collections import namedtuple
@@ -37,7 +38,7 @@ class Settings:
             print 'Dir: {d} does not exist!'.format(d=directory)
             if create:
                 print 'Trying to create: {d}'.format(d=directory)
-                if gSystem.mkdir(directory, True) == -1:
+                if ro.gSystem.mkdir(directory, True) == -1:
                     print 'Could not create it'
                     exit()
                 print 'Successfully created dir: {d}'.format(d=directory)
