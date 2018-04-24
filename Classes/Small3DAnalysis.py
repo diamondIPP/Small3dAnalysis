@@ -5,8 +5,8 @@ from time import time
 from Settings import Settings
 from RawEventSaver import RawEventSaver
 from PedestalCalculation import PedestalCalculation
-# from numpy import array
 import numpy as np
+from PedestalCalculation2 import PedestalCalculation2
 from copy import deepcopy
 import os, logging, sys
 
@@ -46,8 +46,8 @@ class Small3DAnalysis:
             self.rawEventSaver.SaveEvents(self.settings.nEvents)  # TODO: self.settings.nEvents
             del self.rawEventSaver
             # PEDESTAL CALCULATION
-            self.pedestalCalculation = PedestalCalculation(self.settings)
-            self.pedestalCalculation.CalculateSlidingPedestals(runInfo['nEvents'])
+            self.pedestalCalculation2 = PedestalCalculation2(self.settings)
+            self.pedestalCalculation2.CalculateSlidingPedestals(runInfo['nEvents'])
         exit()
 
     def ReadRunList(self, runinfo):
