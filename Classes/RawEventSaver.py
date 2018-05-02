@@ -1,15 +1,50 @@
-from ROOT import TFile, gSystem, TStopwatch, TDatime, TTree
+# from ROOT import TFile, gSystem, TStopwatch, TDatime, TTree
+import ROOT as ro
 from optparse import OptionParser
 from time import time
 from Settings import Settings
 from RawEventReader import RawEventReader
-from numpy import array, zeros
+# from numpy import array, zeros
+import numpy as np
 from copy import deepcopy
 import os, logging
 
 __author__ = 'DA'
 
 class RawEventSaver:
+    def __init__(self, settings):
+        print 'Starting Raw event saver'
+        self.settings = settings
+        self.run = np.array(self.settings.run, 'I')
+        self.eventNumber = np.zeros(1, 'I')
+        self.det_ADC = np.zeros((, self.settings.telDetChs), 'B')  # unsigned char
+        self.dia_ADC = np.zeros(self.settings.dutDetChs, 'H')  # unsigned short (int16)
+        self.rawEventReader = RawEventReader(self.settings)
+        
+
+
+        self.settings.GoToOutputPath()
+        self.rawFilePath = self.settings.GetRawTreeFilePath()
+        print 'Raw file path: {p}'.format(p=self.rawFilePath)
+        self.createdNewFile = False
+        self.rawFile = ro.TFile(self.rawFilePath, 'NEW')
+        if self.rawFile.IsOpen():
+            self.createdNewFile = True
+            print 'Created new Raw file'
+        else:
+            self.rawFile = ro.TFile(self.rawFilePath, 'READ')
+            print 'Opened existing Raw file'
+        self.rawTree = self.rawFile.Get('rawTree')
+        self.createdNewTree = False
+        if not self.rawTree:
+            if not self.createdNewFile:
+                print 'File had no Tree. Recreating file'
+                self.rawFile = ro.TFile(self.rawFilePath, 'RECREATE')
+                self.createdNewFile = True
+            self.rawTree = ro.TTree('rawTree', 'Raw Data of run {r}'.format(r=self.run))
+            self.createdNewTree = True
+        # TODO: is this necessary? gSystem.cd('..') it will go up one folder
+
     def SaveEvents(self, nEvents=0):
         print 'RawEventSaver: Save {n} events'.format(n=nEvents)
         if not self.settings:
@@ -24,8 +59,8 @@ class RawEventSaver:
             else:
                 print 'Tree has not enough entries for analysis. Recreating'
                 self.rawFile.Close()
-                self.rawFile = TFile(self.rawFilePath, 'RECREATE')
-                self.rawTree = TTree('rawTree', 'Raw Data of run {r}'.format(r=self.run))
+                self.rawFile = ro.TFile(self.rawFilePath, 'RECREATE')
+                self.rawTree = ro.TTree('rawTree', 'Raw Data of run {r}'.format(r=self.run))
                 self.createdNewTree, self.createdNewFile = True, True
         if self.createdNewTree:
             self.rawTree.Reset()
@@ -39,7 +74,7 @@ class RawEventSaver:
                     print 'Could not open file: break!'
                     exit()
                 self.LoadEvent()
-                self.eventNumber = array(int(i), 'I')
+                self.eventNumber = np.array(int(i), 'I')
                 self.rawTree.Fill()
                 if i == nEvents - 1:
                     self.rawEventReader.current_rz_file.close()
@@ -50,36 +85,6 @@ class RawEventSaver:
             print 'Total time saving raw events:', str(t1-t0), 's'
         self.rawFile.Close()
         self.settings.GoToPreviousDir()
-
-    def __init__(self, settings=None):
-        print 'Starting Raw event saver'
-        self.settings = settings
-        self.run = array(self.settings.runInfo['run'], 'I')
-        self.eventNumber = array(int(0), 'I')
-        self.det_ADC = zeros((8,256), 'B') # unsigned char
-        self.dia_ADC = zeros(128, 'H') # unsigned short (int16)
-        self.rawEventReader = RawEventReader(self.settings)
-        self.settings.GoToOutputPath()
-        self.rawFilePath = self.settings.GetRawTreeFilePath()
-        print 'Raw file path: {p}'.format(p=self.rawFilePath)
-        self.createdNewFile = False
-        self.rawFile = TFile(self.rawFilePath, 'NEW')
-        if self.rawFile.IsOpen():
-            self.createdNewFile = True
-            print 'Created new Raw file'
-        else:
-            self.rawFile = TFile(self.rawFilePath, 'READ')
-            print 'Opened existing Raw file'
-        self.rawTree = self.rawFile.Get('rawTree')
-        self.createdNewTree = False
-        if not self.rawTree:
-            if not self.createdNewFile:
-                print 'File had no Tree. Recreating file'
-                self.rawFile = TFile(self.rawFilePath, 'RECREATE')
-                self.createdNewFile = True
-            self.rawTree = TTree('rawTree', 'Raw Data of run {r}'.format(r=self.run))
-            self.createdNewTree = True
-        # TODO: is this necessary? gSystem.cd('..') it will go up one folder
 
     def TreeExists(self, nEvents=0):
         if (not self.createdNewFile) and (not self.createdNewTree):

@@ -5,294 +5,218 @@ import os, sys
 import progressbar
 from ConfigParser import ConfigParser
 from collections import namedtuple
-import ipdb
+# import ipdb
+from Utils import *
 
 class Settings:
-    def __init__(self, runInfo=None, current='./', input='./', output='./', settings='./'):
-        self.runInfo = runInfo
-        self.currentDir = current
-        self.inputDir = input
-        self.outputDir = output
-        self.settingsDir = settings
-        self.CheckDirsExistence()
-        self.LoadSettings()
-        self.nEvents = self.runInfo['nEvents']
-        if self.nEvents > self.totalEvents:
-            print 'The run only has', self.totalEvents, 'events. Analysing only', self.totalEvents, 'events instead of', self.nEvents,'.'
-            self.nEvents = self.totalEvents
-        self.previousDir = self.currentDir
-        self.bar = None
-        # TODO do self.LoadSettingsFile() that calls self.LoadDefaultSettings() when it does not exist and delete following lines:
-        self.diaInput = 0  # TODO: delete!!!
-        self.version = '0'
-        self.silDetChs = 256
-        self.diaDetChs = 128
+    def __init__(self, do_parallel=False):
+        self.do_parallel = do_parallel
 
-    def CheckDirsExistence(self):
-        self.CheckDirExistence(self.inputDir)
-        self.CheckDirExistence(self.outputDir, True)
-        self.CheckDirExistence(self.settingsDir)
+        self.run = 0
+        self.total_events = 10000
+        self.ana_events = 10000
+        self.first_event = 0
+        self.repeater_card = 2
+        self.voltage = 100
+        self.current_begin = 0
+        self.current_end = 0
+        self.dut_input = 0
+        self.dut_saturation = 3367
+        self.tel_saturation = 255
+        self.data_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017'
+        self.output_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017/output'
+        self.sub_dir = 'default'
+        self.analysis_path = ''
 
-    def CheckDirExistence(self, directory, create=False):
-        if not os.path.isdir(directory):
-            print 'Dir: {d} does not exist!'.format(d=directory)
-            if create:
-                print 'Trying to create: {d}'.format(d=directory)
-                if ro.gSystem.mkdir(directory, True) == -1:
-                    print 'Could not create it'
-                    exit()
-                print 'Successfully created dir: {d}'.format(d=directory)
-            else:
-                exit()
+        self.dut_num = 1
+        self.not_connected = [0, 127]
+        self.screened = [0, 127]
+        self.noisy = [0, 127]
 
-    def CheckFileExistence(self, file, create=False):
-        if not os.path.isfile(file):
-            print 'File: {f} does not exist!'.format(f=file)
-            if create:
-                print 'Trying to create: {f}'.format(f=file)
-                temp = TFile(file, )
+        self.dut_name = {i: 'diamond' for i in xrange(self.dut_num)}
+        self.dut_pos = {i: 100 for i in xrange(self.dut_num)}
+        self.dut_pitch = {i: 50 for i in xrange(self.dut_num)}
+        self.dut_first_ch = {i: 1 for i in xrange(self.dut_num)}
+        self.dut_last_ch = {i: 126 for i in xrange(self.dut_num)}
+        self.dut_skip_ch = {i: [] for i in xrange(self.dut_num)}
 
-    def CreateProgressBar(self, maxVal=0):
-        widgets = [
-            'Processed: ', progressbar.Counter(),
-            ' of {mv} '.format(mv=maxVal), progressbar.Percentage(),
-            ' ', progressbar.Bar(marker='>'),
-            ' ', progressbar.Timer(),
-            ' ', progressbar.ETA()
-            # ' ', progressbar.AdaptativeETA(),
-            #  ' ', progressbar.AdaptativeTransferSpeed()
-            ]
-        self.bar = progressbar.ProgressBar(widgets=widgets, maxval=maxVal)
+        self.do_pedestal = False
+        self.do_cluster = False
+        self.do_cluster_ana = False
+        self.do_alignment = False
+        self.do_alignment_ana = False
+        self.do_transparent = False
+        self.do_3d = False
 
-    def GetAbsoluteOutputPath(self):
-        string = self.outputDir + '/' + str(self.runInfo['run']) + '/'
-        return string
+        self.tel_hit_factor = 5
+        self.dut_hit_factor = 3
+        self.do_cmc = True
+        self.cm_cut = 4
 
-    def GoToDir(self, directory):
-        self.CheckDirExistence(directory, True)
-        gSystem.cd(directory)
-        self.currentDir = gSystem.pwd()
+        self.clust_seed = {0: 14, 1: 19, 2: 23, 3: 23, 4: 14, 5: 13, 6: 11, 7: 10, 8: 5}
+        self.clust_hit = {0: 12, 1: 14, 2: 17, 3: 17, 4: 8, 5: 7, 6: 7, 7: 6, 8: 3}
 
-    def GoToOutputPath(self):
-        self.previousDir = self.currentDir
-        self.GoToDir(self.GetAbsoluteOutputPath())
+        self.scint_fid_cut = {'xlow': 0, 'xhigh': 255, 'ylow': 0, 'yhigh': 255}
 
-    def GoToPreviousDir(self):
-        temp = self.currentDir
-        self.GoToDir(self.previousDir)
-        self.previousDir = temp
-        self.currentDir = gSystem.pwd()
+        self.fid_region = {i: {'xlow': 0, 'xhigh': 255, 'ylow': 0, 'yhigh': 255} for i in xrange(self.dut_num)}
 
-    def GetRawTreeFilePath(self):
-        path = self.GetAbsoluteOutputPath() + 'rawData.{r}.root'.format(r=self.runInfo['run'])
-        return path
+        self.do_align_dut = True
+        self.align_dut = 0
+        self.z_coordinates = {0: 0.725, 1: 0.725, 2: 1.625, 3: 1.625, 4: 18.725, 5: 18.725, 6: 19.625, 7: 19.625, 8: 10.2}
+        self.align_method = 'events'
+        self.align_factor = 1000
+        self.no_align_dut_chs = {0, 127}
+        self.align_chi2_cut = 4
 
-    def GetAbsoluteInputPath(self):
-        string = self.inputDir + '/' + str(self.runInfo['run']) + '/'
-        return string
+        self.max_transp_clust_size = 10
+        self.save_transp_clust_size = 10
+        self.do_analyse_alignment = False
 
-    def GetPedestalTreeFilePath(self):
-        path = self.GetAbsoluteOutputPath() + 'pedestalData.{r}.root'.format(r=self.runInfo['run'])
-        return path
+        self.telDetChs = 256
+        self.dutDetChs = 128
+        self.telPlanes = 8
 
-    def GetEtaIntegralFilePath(self):
-        path = self.GetAbsoluteOutputPath() + 'etaCorrection.{r}.root'.format(r=self.runInfo['run'])
-        return path
+    def ReadSettingsFile(self, in_file=''):
+        if in_file != '':
+            if os.path.isfile(in_file):
+                pars = ConfigParser()
+                pars.read(in_file)
+                print 'Loading settings from file:', in_file
 
-    def LoadSettings(self):
-        self.LoadDefaults()
-        if os.path.isfile(self.settingsDir + '/settings.{r}.ini'.format(r=self.runInfo['run'])):
-            parser = ConfigParser()
-            parser.read(self.settingsDir + '/settings.{r}.ini'.format(r=self.runInfo['run']))
-            print 'Loading settings from file: {s}/settings.{r}.ini'.format(s=self.settingsDir, r=self.runInfo['run'])
-            self.totalEvents = parser.getint('BASIC', 'Events') if parser.has_option('BASIC', 'Events') else self.totalEvents
-            self.repeaterCard = parser.getint('BASIC', 'repeaterCardNo') if parser.has_option('BASIC', 'repeaterCardNo') else self.repeaterCard
-            self.voltage = parser.getint('BASIC', 'voltage') if parser.has_option('BASIC', 'voltage') else self.voltage
-            self.diamondName = parser.get('BASIC', 'diamondName') if parser.has_option('BASIC', 'diamondName') else self.diamondName
-            self.currentBegin = parser.getfloat('BASIC', 'currentBegin') if parser.has_option('BASIC', 'currentBegin') else self.currentBegin
-            self.currentEnd = parser.getfloat('BASIC', 'currentEnd') if parser.has_option('BASIC', 'currentEnd') else self.currentEnd
-            self.diaInput = parser.getint('BASIC', 'dia_input') if parser.has_option('BASIC', 'dia_input') else self.diaInput
-            self.SetDiamondPatterns(parser)
-            self.SetScreenedChannels(parser)
-            self.SetNoisyChannels(parser)
-            self.SetNotConnectedChannels(parser)
-            self.siPedestalHitFactor = parser.getint('PEDESTAL', 'SiPedestalHitFactor') if parser.has_option('PEDESTAL', 'SiPedestalHitFactor') else self.siPedestalHitFactor
-            self.diaPedestalHitFactor = parser.getint('PEDESTAL', 'DiaPedestalHitFactor') if parser.has_option('PEDESTAL', 'DiaPedestalHitFactor') else self.diaPedestalHitFactor
-            self.doCMC = parser.getboolean('PEDESTAL', 'doCMC') if parser.has_option('PEDESTAL', 'doCMC') else self.doCMC
-            self.cmnCut = parser.getint('PEDESTAL', 'cmnCut') if parser.has_option('PEDESTAL', 'cmnCut') else self.cmnCut
-            self.bufferSize = parser.getint('PEDESTAL', 'Iter_Size') if parser.has_option('PEDESTAL', 'Iter_Size') else self.bufferSize
-            if parser.has_option('CLUSTER', 'clusterSeedFactors'):
-                exec('self.clusterSeedFactors = {v}'.format(v=parser.get('CLUSTER', 'clusterSeedFactors')))
-            if parser.has_option('CLUSTER', 'clusterHitFactors'):
-                exec('self.clusterHitFactors = {v}'.format(v=parser.get('CLUSTER', 'clusterHitFactors')))
-            self.nDia = parser.getint('SELECTION', 'nDia') if parser.has_option('SELECTION', 'nDia') else self.nDia
-            self.alignDia = parser.getint('SELECTION', 'alignDia') if parser.has_option('SELECTION', 'alignDia') else self.alignDia
-            self.threeDDia = parser.getint('SELECTION', '3DDia') if parser.has_option('SELECTION', '3DDia') else self.threeDDia
-            self.phantomDia = parser.getint('SELECTION', 'phantomDia') if parser.has_option('SELECTION', 'phantomDia') else self.phantomDia
-            self.SetScintillatorFidCut(parser)
-            self.SetDiamondFidCut(parser)
-            self.SetDiamondSelections(parser)
-            if parser.has_option('ALIGNMENT', 'zCoordinates'):
-                exec('self.zCoordinates = {v}'.format(v=parser.get('ALIGNMENT', 'zCoordinates')))
-            self.alignMethod = parser.get('ALIGNMENT', 'alignmentMethod') if parser.has_option('BASIC', 'alignmentMethod') else self.alignMethod
-            self.doAlignDia = parser.getboolean('ALIGNMENT', 'doAlignDiamond') if parser.has_option('ALIGNMENT', 'doAlignDiamond') else self.doAlignDia
-            self.SetAlignIgnoreDiaChs(parser)
-            self.alignmentChi2Cut = parser.getint('ALIGNMENT', 'alignmentChi2Cut') if parser.has_option('ALIGNMENT', 'alignmentChi2Cut') else self.alignmentChi2Cut
-            self.alignmentFactor = parser.getfloat('ALIGNMENT', 'alignmentFactor') if parser.has_option('ALIGNMENT', 'alignmentFactor') else self.alignmentFactor
-        else:
-            print 'Loaded default settings'
+                if pars.has_section('BASIC'):
+                    if pars.has_option('BASIC', 'run'):
+                        self.run = pars.getint('BASIC', 'run')
+                    else:
+                        ExitMessage('Must specify run under [BASIC]. Exiting...')
+                    if pars.has_option('BASIC', 'events'):
+                        self.total_events = pars.getint('BASIC', 'events')
+                    if pars.has_option('BASIC', 'ana_events'):
+                        self.ana_events = pars.getint('BASIC', 'ana_events')
+                    if pars.has_option('BASIC', 'first_event'):
+                        self.first_event = pars.getint('BASIC', 'first_event')
+                    if pars.has_option('BASIC', 'repeater_card'):
+                        self.repeater_card = pars.getint('BASIC', 'repeater_card')
+                    if pars.has_option('BASIC', 'voltage'):
+                        self.voltage = pars.getfloat('BASIC', 'voltage')
+                    if pars.has_option('BASIC', 'current_begin'):
+                        self.current_begin = pars.getfloat('BASIC', 'current_begin')
+                    if pars.has_option('BASIC', 'current_end'):
+                        self.current_end = pars.getfloat('BASIC', 'current_end')
+                    if pars.has_option('BASIC', 'dut_input'):
+                        self.dut_input = pars.getint('BASIC', 'dut_input')
+                    if pars.has_option('BASIC', 'dut_saturation'):
+                        self.dut_saturation = pars.getint('BASIC', 'dut_saturation')
+                    if pars.has_option('BASIC', 'data_dir'):
+                        self.data_dir = pars.get('BASIC', 'data_dir')
+                        if not os.path.isdir(self.data_dir):
+                            ExitMessage('The specified data directory does not exist. Exiting...')
+                    if pars.has_option('BASIC', 'output_dir'):
+                        self.output_dir = pars.get('BASIC', 'output_dir')
+                    if pars.has_option('BASIC', 'sub_dir'):
+                        self.sub_dir = pars.get('BASIC', 'sub_dir')
 
-    def SetDiamondSelections(self, parser):
-        if parser.has_option('SELECTION', 'selectionFidCut'):
-            dic = {}
-            exec('dic = {v}'.format(v=parser.get('SELECTION', 'selectionFidCut')))
-            self.selectionFidCut = {key: {'xlow': value['x'][0], 'xhigh': value['x'][-1], 'ylow': value['y'][0], 'yhigh': value['y'][-1]} for key, value in dic.iteritems()}
+                if pars.has_section('DUTS'):
+                    if pars.has_option('DUTS', 'num'):
+                        self.dut_num = pars.getint('DUTS', 'num')
+                    if pars.has_option('DUTS', 'not_connected'):
+                        self.not_connected = ChannelStringToArray(pars.get('DUTS', 'not_connected'))
+                    if pars.has_option('DUTS', 'screened'):
+                        self.screened = ChannelStringToArray(pars.get('DUTS', 'screened'))
+                    if pars.has_option('DUTS', 'noisy'):
+                        self.noisy = ChannelStringToArray(pars.get('DUTS', 'noisy'))
 
-    def SetScintillatorFidCut(self, parser):
-        if parser.has_option('SELECTION', 'ScintillatorFidCutX') and parser.has_option('SELECTION', 'ScintillatorFidCutY'):
-            listX, listY = [], []
-            exec('listX = {v}'.format(v=parser.get('SELECTION', 'ScintillatorFidCutX')))
-            exec('listY = {v}'.format(v=parser.get('SELECTION', 'ScintillatorFidCutY')))
-            self.scintFidCut = {'xlow': listX[0], 'xhigh': listX[-1], 'ylow': listY[0], 'yhigh': listY[-1]}
+                for dut in xrange(self.dut_num):
+                    if pars.has_section('DUT{d}'.format(d=dut)):
+                        if pars.has_option('DUT{d}'.format(d=dut), 'name'):
+                            self.dut_name[dut] = pars.get('DUT{d}'.format(d=dut), 'name')
+                        if pars.has_option('DUT{d}'.format(d=dut), 'x0'):
+                            self.dut_pos[dut] = pars.getfloat('DUT{d}'.format(d=dut), 'x0')
+                        if pars.has_option('DUT{d}'.format(d=dut), 'pitch'):
+                            self.dut_pitch[dut] = pars.getfloat('DUT{d}'.format(d=dut), 'pitch')
+                        if pars.has_option('DUT{d}'.format(d=dut), 'first'):
+                            self.dut_first_ch[dut] = pars.getint('DUT{d}'.format(d=dut), 'first')
+                        if pars.has_option('DUT{d}'.format(d=dut), 'skip'):
+                            self.dut_skip_ch[dut] = ChannelStringToArray(pars.get('DUT{d}'.format(d=dut), 'skip'))
+                        if pars.has_option('DUT{d}'.format(d=dut), 'last'):
+                            self.dut_last_ch[dut] = pars.getint('DUT{d}'.format(d=dut), 'last')
 
-    def SetDiamondFidCut(self, parser):
-        if parser.has_option('SELECTION', 'DiaFidCutX') and parser.has_option('SELECTION', 'DiaFidCutY'):
-            listX, listY = [], []
-            exec('listX = {v}'.format(v=parser.get('SELECTION', 'DiaFidCutX')))
-            exec('listY = {v}'.format(v=parser.get('SELECTION', 'DiaFidCutY')))
-            self.diaFidCut = {'xlow': listX[0], 'xhigh': listX[-1], 'ylow': listY[0], 'yhigh': listY[-1]}
+                if pars.has_section('ANALYSIS'):
+                    if pars.has_option('ANALYSIS', 'do_pedestal'):
+                        self.do_pedestal = pars.getboolean('ANALYSIS', 'do_pedestal')
+                    if pars.has_option('ANALYSIS', 'do_cluster'):
+                        self.do_cluster = pars.getboolean('ANALYSIS', 'do_cluster')
+                    if pars.has_option('ANALYSIS', 'do_cluster_analysis'):
+                        self.do_cluster_ana = pars.getboolean('ANALYSIS', 'do_cluster_analysis')
+                    if pars.has_option('ANALYSIS', 'do_alignment'):
+                        self.do_alignment = pars.getboolean('ANALYSIS', 'do_alignment')
+                    if pars.has_option('ANALYSIS', 'do_alignment_analysis'):
+                        self.do_alignment_ana = pars.getboolean('ANALYSIS', 'do_alignment_analysis')
+                    if pars.has_option('ANALYSIS', 'do_transparent'):
+                        self.do_transparent = pars.getboolean('ANALYSIS', 'do_transparent')
+                    if pars.has_option('ANALYSIS', 'do_3d'):
+                        self.do_3d = pars.getboolean('ANALYSIS', 'do_3d')
 
-    def SetDiamondPatterns(self, parser):
-        if parser.has_option('DIAMOND', 'diamondPattern'):
-            dic = {}
-            exec('dic = {v}'.format(v=parser.get('DIAMOND', 'diamondPattern')))
-            self.diaPattern = {key: {'x0': value[0], 'pitch': value[1], 'first': value[2], 'last': value[3]} for key, value in dic.iteritems()}
+                if pars.has_section('PEDESTAL'):
+                    if pars.has_option('PEDESTAL', 'tel_ped_hit_factor'):
+                        self.tel_hit_factor = pars.getfloat('PEDESTAL', 'tel_ped_hit_factor')
+                    if pars.has_option('PEDESTAL', 'dut_ped_hit_factor'):
+                        self.dut_hit_factor = pars.getfloat('PEDESTAL', 'dut_ped_hit_factor')
+                    if pars.has_option('PEDESTAL', 'do_cmc'):
+                        self.do_cmc = pars.getboolean('PEDESTAL', 'do_cmc')
+                    if pars.has_option('PEDESTAL', 'cm_cut'):
+                        self.cm_cut = pars.getfloat('PEDESTAL', 'cm_cut')
 
-    def SetAlignIgnoreDiaChs(self, parser):
-        if parser.has_option('ALIGNMENT', 'alignIgnoreDiaChs'):
-            string = parser.get('ALIGNMENT', 'alignIgnoreDiaChs')
-            self.alignIgnoreDiaChs = self.GetChannelsFromString(string)
+                if pars.has_section('CLUSTER'):
+                    if pars.has_option('CLUSTER', 'clust_seed_facts'):
+                        self.clust_seed = eval(pars.get('CLUSTER', 'clust_seed_facts'))
+                    if pars.has_option('CLUSTER', 'clust_hit_facts'):
+                        self.clust_hit = eval(pars.get('CLUSTER', 'clust_hit_facts'))
 
-    def SetScreenedChannels(self, parser):
-        if parser.has_option('DIAMOND', 'diaChannelsScreened'):
-            string = parser.get('DIAMOND', 'diaChannelsScreened')
-            self.diaChsScreened = self.GetChannelsFromString(string)
+                if pars.has_section('SELECTION_SCINT'):
+                    if pars.has_option('SELECTION_SCINT', 'xlow'):
+                        self.scint_fid_cut['xlow'] = pars.getfloat('SELECTION_SCINT', 'xlow')
+                    if pars.has_option('SELECTION_SCINT', 'xhigh'):
+                        self.scint_fid_cut['xhigh'] = pars.getfloat('SELECTION_SCINT', 'xhigh')
+                    if pars.has_option('SELECTION_SCINT', 'ylow'):
+                        self.scint_fid_cut['ylow'] = pars.getfloat('SELECTION_SCINT', 'ylow')
+                    if pars.has_option('SELECTION_SCINT', 'yhigh'):
+                        self.scint_fid_cut['yhigh'] = pars.getfloat('SELECTION_SCINT', 'yhigh')
 
-    def SetNoisyChannels(self, parser):
-        if parser.has_option('DIAMOND', 'diaNoisyChannels'):
-            string = parser.get('DIAMOND', 'diaNoisyChannels')
-            self.diaChsNoisy = self.GetChannelsFromString(string)
+                for dut in xrange(self.dut_num):
+                    if pars.has_section('SELECTION{d}'.format(d=dut)):
+                        if pars.has_option('SELECTION{d}'.format(d=dut), 'xlow') and pars.has_option('SELECTION{d}'.format(d=dut), 'xhigh') and pars.has_option('SELECTION{d}'.format(d=dut), 'ylow') and pars.has_option('SELECTION{d}'.format(d=dut), 'yhigh'):
+                            self.fid_region[dut] = {'xlow': pars.getfloat('SELECTION{d}'.format(d=dut), 'xlow'), 'xhigh': pars.getfloat('SELECTION{d}'.format(d=dut), 'xhigh'), 'ylow': pars.getfloat('SELECTION{d}'.format(d=dut), 'ylow'), 'yhigh': pars.getfloat('SELECTION{d}'.format(d=dut), 'yhigh')}
+                        elif pars.has_option('SELECTION{d}'.format(d=dut), 'xlow') or pars.has_option('SELECTION{d}'.format(d=dut), 'xhigh') or pars.has_option('SELECTION{d}'.format(d=dut), 'ylow') or pars.has_option('SELECTION{d}'.format(d=dut), 'yhigh'):
+                            print 'setting default fiducial region for nos specifying all the parameters xlow, xhigh, ylow, yhigh'
+                            self.fid_region[dut] = {'xlow': 0, 'xhigh': 255, 'ylow': 0, 'yhigh': 255}
+                        else:
+                            self.fid_region[dut] = {'xlow': 0, 'xhigh': 255, 'ylow': 0, 'yhigh': 255}
+                    else:
+                        ExitMessage('You should have a SELECTION section for each dut i.e. SELECTION0 and SELECTION1 if num or DUTS is 2')
+                if pars.has_section('ALIGNMENT'):
+                    if pars.has_option('ALIGNMENT', 'align_dut'):
+                        self.align_dut = min(0, pars.getint('ALIGNMENT', 'align_dut'))
+                    if pars.has_option('ALIGNMENT', 'z_coordinates'):
+                        self.z_coordinates = eval(pars.get('ALIGNMENT', 'z_coordinates'))
+                    if pars.has_option('ALIGNMENT', 'alignment_method'):
+                        if pars.get('ALIGNMENT', 'alignment_method') in ['events', 'percentage']:
+                            self.align_method = pars.get('ALIGNMENT', 'alignment_method')
+                    if pars.has_option('ALIGNMENT', 'alignment_factor'):
+                        self.align_factor = pars.getint('ALIGNMENT', 'alignment_factor')
+                    if pars.has_option('ALIGNMENT', 'do_align_dut'):
+                        self.do_align_dut = pars.getboolean('ALIGNMENT', 'do_align_dut')
+                    if pars.has_option('ALIGNMENT', 'no_align_dut_chs'):
+                        self.no_align_dut_chs = ChannelStringToArray(pars.get('ALIGNMENT', 'no_align_dut_chs'))
+                    if pars.has_option('ALIGNMENT', 'alignment_chi2_cut'):
+                        self.align_chi2_cut = pars.getfloat('ALIGNMENT', 'alignment_chi2_cut')
 
-    def SetNotConnectedChannels(self, parser):
-        if parser.has_option('DIAMOND', 'diaChannelsNotConnected'):
-            string = parser.get('DIAMOND', 'diaChannelsNotConnected')
-            self.diaChsNotConnected = self.GetChannelsFromString(string)
-
-    def GetChannelsFromString(self, string):
-        string.strip()
-        string = string.replace(' ', '')
-        strips = string.split(',')
-        listChs = [range(int(i[0]), int(i[-1]) + 1) for i in [elem.split(':') for elem in strips]]
-        return deepcopy([ch for group in listChs for ch in group])
-
-    def OpenFile(self, filePath='', create=True):
-        created = False
-        if create:
-            tfile = TFile(filePath, 'NEW')
-            if tfile.IsOpen():
-                created = True
-                print 'Created new root file:', filePath
-            else:
-                tfile = TFile(filePath, 'READ')
-                print 'Opened existing file:', filePath
-        else:
-            tfile = TFile(filePath, 'READ')
-        fileBool = namedtuple('File_bool', ['file', 'boolFile'])
-        fileBoolReturn = fileBool(tfile, created)
-        return fileBoolReturn
-
-    def OpenTree(self, filePath='', treeName='tree', create=True):
-        if create:
-            createdNewFile = False
-            tfile = TFile(filePath, 'NEW')
-            if tfile.IsOpen():
-                createdNewFile = True
-                print 'Created new root file:', filePath
-            else:
-                tfile= TFile(filePath, 'READ')
-                print 'Opened existing file:', filePath
-            tree = tfile.Get(treeName)
-            createdNewTree = False
-            if not tree:
-                if not createdNewFile:
-                    print 'File had no Tree. Recreating file'
-                    tfile.Close()
-                    tfile= TFile(filePath, 'RECREATE')
-                    createdNewFile = True
-                tree = TTree(treeName, '{t} data of run {r}'.format(t=treeName, r=self.runInfo['run']))
-                createdNewTree = True
-            else:
-                if tree.GetEntries() < self.nEvents:
-                    print 'Tree exists but does not have the desired number of events. Recreating'
-                    tree.Delete()
-                    tree = TTree(treeName, '{t} data of run {r}'.format(t=treeName, r=self.runInfo['run']))
-                    createdNewTree = True
-        else:
-            tfile= TFile(filePath, 'READ')
-            tree = tfile.Get(treeName)
-            createdNewFile, createdNewTree = False, False
-        fileTree = namedtuple('File_Tree_data', ['file', 'tree', 'boolFile', 'boolTree'])
-        fileTreeReturn = fileTree(tfile, tree, createdNewFile, createdNewTree)
-        return fileTreeReturn
-
-    def IsMasked(self, type='dia', det=0, ch=0):
-        if type == 'dia':
-            return ch in self.diaChsScreened
-        else:
-            return False
-
-    def IsConnected(self, ch):
-        return ch not in self.diaChsNotConnected
-
-    def LoadDefaults(self):
-        self.totalEvents = 100000
-        self.repeaterCard = 2
-        self.voltage = 0
-        self.diamondName = 'diamond'
-        self.currentBegin = -1
-        self.currentEnd = -1
-        self.diaInput = 0
-        self.diaPattern = {0: {'x0': 25, 'pitch': 50, 'first': 1, 'last': 126}}
-        self.diaChsScreened = [0, 127]
-        self.diaChsNoisy = []
-        self.diaChsNotConnected = [0, 127]
-        self.siPedestalHitFactor = 5
-        self.diaPedestalHitFactor = 3
-        self.doCMC = True
-        self.cmnCut = 4
-        self.bufferSize = 500
-        self.clusterSeedFactors = {0: 14, 1: 19, 2: 23, 3: 23, 4: 14, 5: 13, 6: 11, 7: 10, 8: 5}
-        self.clusterHitFactors = {0: 12, 1: 14, 2: 17, 3: 17, 4: 8, 5: 7, 6: 7, 7: 6, 8: 3}
-        self.nDia = 1
-        self.alignDia = 0
-        self.threeDDia = -1
-        self.phantomDia = -1
-        self.scintFidCut = {'xlow': 1, 'xhigh': 254, 'ylow': 1, 'yhigh': 254}
-        self.diaFidCut = {'xlow': 1, 'xhigh': 254, 'ylow': 1, 'yhigh': 254}
-        self.selectionFidCut = {0: {'xlow': 1, 'xhigh': 254, 'ylow': 1, 'yhigh': 254}}
-        self.zCoordinates = {0: 0.725, 1: 0.725, 2: 1.625, 3: 1.625, 4: 18.725, 5: 18.725, 6: 19.625, 7: 19.625, 8: 10.2}
-        self.alignMethod = 'events'
-        self.doAlignDia = True
-        self.alignIgnoreDiaChs = [0, 127]
-        self.alignmentChi2Cut = 4
-        self.alignmentFactor = 10000
-        self.silNumPlanes = 8
-        self.diaNumPlanes = 1
-        self.diaMaxADC = 4095
-        self.silMaxADC = 255
-        self.silNumPlanes = 4
-        self.silNumDetectors = 8
-        self.maxTranspCluster = 10
+                if pars.has_section('TRANSPARENT'):
+                    if pars.has_option('TRANSPARENT', 'max_transp_cluster_size'):
+                        self.max_transp_clust_size = pars.getint('TRANSPARENT', 'max_transp_cluster_size')
+                    if pars.has_option('TRANSPARENT', 'save_transp_cluster_size'):
+                        self.save_transp_clust_size = pars.getint('TRANSPARENT', 'save_transp_cluster_size')
+                    if pars.has_option('TRANSPARENT', 'analyse_align'):
+                        self.do_analyse_alignment = pars.getboolean('TRANSPARENT', 'analyse_align')
 
 if __name__ == '__main__':
     z = Settings()
