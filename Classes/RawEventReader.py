@@ -12,7 +12,7 @@ import ipdb
 __author__ = 'DA'
 
 class RawEventReader:
-    def __init__(self, settings=None):
+    def __init__(self, settings=None, job=0):
         print 'Starting Raw event reader'
         self.eventsPerFile = 10000
         self.silTelMem = 2048

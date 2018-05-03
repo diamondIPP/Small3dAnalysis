@@ -7,10 +7,16 @@ from ConfigParser import ConfigParser
 from collections import namedtuple
 # import ipdb
 from Utils import *
+import multiprocessing as mp
 
 class Settings:
     def __init__(self, do_parallel=False):
         self.do_parallel = do_parallel
+        if not self.do_parallel:
+            self.num_parallel = 1
+        else:
+            num_cores = mp.cpu_count()
+            self.num_parallel = 1 if num_cores < 4 else 2 if num_cores < 8 else 4 if num_cores < 16 else 8 if num_cores < 32 else 16
 
         self.run = 0
         self.total_events = 10000
@@ -26,7 +32,7 @@ class Settings:
         self.data_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017'
         self.output_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017/output'
         self.sub_dir = 'default'
-        self.analysis_path = ''
+        self.analysis_path = '/home/sandiego/Small3dAnalysis'
 
         self.dut_num = 1
         self.not_connected = [0, 127]
@@ -74,7 +80,13 @@ class Settings:
 
         self.telDetChs = 256
         self.dutDetChs = 128
-        self.telPlanes = 8
+        self.telPlanes = 4
+        self.telDetectors = 8
+        self.event_per_file = 10000
+        self.tel_mem = 2048
+        self.dut_mem = 256
+        self.file_name = ''
+        self.tree_name = ''
 
     def ReadSettingsFile(self, in_file=''):
         if in_file != '':
@@ -114,6 +126,12 @@ class Settings:
                         self.output_dir = pars.get('BASIC', 'output_dir')
                     if pars.has_option('BASIC', 'sub_dir'):
                         self.sub_dir = pars.get('BASIC', 'sub_dir')
+                    if pars.has_option('BASIC', 'analysis_path'):
+                        self.analysis_path = pars.get('BASIC', 'analysis_path')
+                        if not os.path.isdir(self.analysis_path):
+                            ExitMessage('Must give a valid analysis_path under [BASIC]. Exiting...')
+                    if pars.has_option('BASIC', 'num_parallel') and self.do_parallel:
+                        self.num_parallel = pars.getint('BASIC', 'num_parallel') if pars.getint('BASIC', 'num_parallel') <= mp.cpu_count() else self.num_parallel
 
                 if pars.has_section('DUTS'):
                     if pars.has_option('DUTS', 'num'):
@@ -217,6 +235,11 @@ class Settings:
                         self.save_transp_clust_size = pars.getint('TRANSPARENT', 'save_transp_cluster_size')
                     if pars.has_option('TRANSPARENT', 'analyse_align'):
                         self.do_analyse_alignment = pars.getboolean('TRANSPARENT', 'analyse_align')
+        self.SetFileAndTreeName()
+
+    def SetFileAndTreeName(self):
+        self.tree_name = 'run_{r}_{s}'.format(r=self.run, s=self.sub_dir)
+        self.file_name = 'run_{r}_{s}'.format(r=self.run, s=self.sub_dir)
 
 if __name__ == '__main__':
     z = Settings()

@@ -3,48 +3,57 @@ import ROOT as ro
 from optparse import OptionParser
 from time import time
 from Settings import Settings
-from RawEventReader import RawEventReader
+from RawEventSaver import RawEventSaver
 # from numpy import array, zeros
 import numpy as np
 from copy import deepcopy
 import os, logging
+import subprocess as subp
 
 __author__ = 'DA'
 
-class RawEventSaver:
-    def __init__(self, settings=None, job=0):
-        print 'Starting Raw event saver'
+class Converter:
+    def __init__(self, settings):
+        print 'Starting Converter...'
         self.settings = settings
-        self.run = self.settings.run
-        self.job = job
-        self.eventNumber = np.zeros(1, 'I')
-        self.det_ADC = np.zeros((self.settings.telDetectors, self.settings.telDetChs), 'B')  # unsigned char
-        self.dia_ADC = np.zeros(self.settings.dutDetChs, 'H')  # unsigned short (int16)
-        self.rawEventReader = RawEventReader(self.settings)
+        self.tree_name = self.settings.tree_name
+        self.file_name = self.settings.file_name
+        self.ana_events = self.settings.ana_events
+        self.num_parallel = self.settings.num_parallel
+        self.out_dir = self.settings.output_dir
+        self.ana_dir = self.settings.analysis_path
+        self.do_conversion = self.Check_If_Already_Converted()
+        self.num_events_per_job = 0
+        self.event_saver_processes = []
 
-
-
-        self.settings.GoToOutputPath()
-        self.rawFilePath = self.settings.GetRawTreeFilePath()
-        print 'Raw file path: {p}'.format(p=self.rawFilePath)
-        self.createdNewFile = False
-        self.rawFile = ro.TFile(self.rawFilePath, 'NEW')
-        if self.rawFile.IsOpen():
-            self.createdNewFile = True
-            print 'Created new Raw file'
+    def Check_If_Already_Converted(self):
+        if not os.path.isfile('{o}/{f}.root'.format(o=self.out_dir, f=self.file_name)):
+            print 'The file does not exist. Conversion started.'
+            return False
         else:
-            self.rawFile = ro.TFile(self.rawFilePath, 'READ')
-            print 'Opened existing Raw file'
-        self.rawTree = self.rawFile.Get('rawTree')
-        self.createdNewTree = False
-        if not self.rawTree:
-            if not self.createdNewFile:
-                print 'File had no Tree. Recreating file'
-                self.rawFile = ro.TFile(self.rawFilePath, 'RECREATE')
-                self.createdNewFile = True
-            self.rawTree = ro.TTree('rawTree', 'Raw Data of run {r}'.format(r=self.run))
-            self.createdNewTree = True
-        # TODO: is this necessary? gSystem.cd('..') it will go up one folder
+            tempf = ro.TFile('{o}/{f}.root'.format(o=self.out_dir, f=self.file_name))
+            if tempf.IsZombie():
+                print 'The existing file cannot be opened. It will be re-written. Conversion started.'
+                tempf.Close()
+                return False
+            tempt = tempf.Get(self.tree_name)
+            if not tempt:
+                print 'The file does not have the tree', self.tree_name, '. It will be created. Conversion started.'
+                tempf.Close()
+                return False
+            elif tempt.GetEntries() < self.ana_events:
+                print 'The file does not have enough events. It will be re-written. Conversion started.'
+                tempf.Close()
+                return False
+            else:
+                print 'The file has enough events. Skipping conversion'
+                tempf.Close()
+                return True
+
+    def Convert(self):
+        self.num_events_per_job = int(self.ana_events) / int(self.num_parallel)
+        for job_i in xrange(self.num_parallel):
+            self.event_saver_processes.append(subp.Popen(['{ad}/RawEventSaver.py', -]))  # TODO save settings file in output dir as pickle and read it. Then use the path as input for the rawsaver. :D
 
     def SaveEvents(self, nEvents=0):
         print 'RawEventSaver: Save {n} events'.format(n=nEvents)
@@ -115,4 +124,4 @@ class RawEventSaver:
         self.dia_ADC = self.rawEventReader.GetDiaDet(self.settings.diaInput)
 
 if __name__ == '__main__':
-    z = RawEventSaver()
+    z = Converter()

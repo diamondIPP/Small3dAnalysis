@@ -6,7 +6,7 @@ import ROOT as ro
 from optparse import OptionParser
 from time import time
 from Settings import Settings
-from RawEventSaver import RawEventSaver
+from Converter import Converter
 from PedestalCalculation import PedestalCalculation
 import numpy as np
 from PedestalCalculation2 import PedestalCalculation2
@@ -28,6 +28,8 @@ class SmallRD42Analysis:
         self.runWatch.Start(True)
         time = ro.TDatime()
         logging.basicConfig(filename='analysis_log_{r}_{y}_{m}_{d}_{h}.{min}.{sec}.log'.format(r=self.settings.run, y=time.GetYear(), m=time.GetMonth(), d=time.GetDay(), h=time.GetHour(), min=time.GetMinute(), sec=time.GetSecond()), level=logging.DEBUG)
+
+        self.converter = None
         # TODO Results class from settings
         # CREATE RAW ROOT TREE
         # self.rawEventSaver = RawEventSaver(self.settings)
@@ -39,6 +41,10 @@ class SmallRD42Analysis:
 
     def Run_Analysis(self):
         CreateDirectoryIfNecessary(self.settings.output_dir + '/' + self.settings.sub_dir)
+        self.converter = Converter(self.settings)
+        if self.converter.do_conversion:
+            self.converter.Convert()
+
         self.rawEventSaver = RawEventSaver(self.settings)
         self.rawEventSaver.SaveEvents()
 
