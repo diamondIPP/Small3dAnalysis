@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import ROOT as ro
 import os, sys, logging
-sys.path.append('/home/sandiego/Small3dAnalysis/Classes')
+sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!! NEEDED TO RUN IN BATCH!!! CHANGE ACCORDINGLY
 from optparse import OptionParser
 from Settings import Settings
 from RawEventReader import RawEventReader

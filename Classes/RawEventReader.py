@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os, logging, sys
-sys.path.append('/home/sandiego/Small3dAnalysis/Classes')
+sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!! NEEDED TO RUN IN BATCH!!! CHANGE ACCORDINGLY
 from Settings import Settings
 import numpy as np
 import struct

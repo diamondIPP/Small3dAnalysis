@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import ROOT as ro
 import os, logging, shutil, sys
-sys.path.append('/home/sandiego/Small3dAnalysis/Classes')
+sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!! NEEDED TO RUN IN BATCH!!! CHANGE ACCORDINGLY
 from Settings import Settings
 import subprocess as subp
 from Utils import *
