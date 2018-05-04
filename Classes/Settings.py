@@ -83,6 +83,7 @@ class Settings:
         self.tel_mem = 2048
         self.dut_mem = 256
         self.struct_fmt = '>IIIiiiII8i8iihh2i2048B256HI'  # big-endian
+        self.sliding_length = 500
 
         self.file_name = ''
         self.tree_name = ''
@@ -182,6 +183,8 @@ class Settings:
                         self.do_cmc = pars.getboolean('PEDESTAL', 'do_cmc')
                     if pars.has_option('PEDESTAL', 'cm_cut'):
                         self.cm_cut = pars.getfloat('PEDESTAL', 'cm_cut')
+                    if pars.has_option('PEDESTAL', 'sliding_length'):
+                        self.sliding_length = pars.getint('PEDESTAL', 'sliding_length')
 
                 if pars.has_section('CLUSTER'):
                     if pars.has_option('CLUSTER', 'clust_seed_facts'):
