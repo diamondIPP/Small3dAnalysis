@@ -1,13 +1,10 @@
-# from ROOT import gSystem, TFile, TTree
-import ROOT as ro
-from copy import deepcopy
+#!/usr/bin/env python
 import os, sys
-import progressbar
+sys.path.append('/home/sandiego/Small3dAnalysis/Classes')
 from ConfigParser import ConfigParser
-from collections import namedtuple
-# import ipdb
 from Utils import *
 import multiprocessing as mp
+import pickle
 
 class Settings:
     def __init__(self, do_parallel=False):
@@ -30,8 +27,8 @@ class Settings:
         self.dut_saturation = 3367
         self.tel_saturation = 255
         self.data_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017'
-        self.output_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017/output'
         self.sub_dir = 'default'
+        self.output_dir = '/data/diamondSetup/diamondTestbeam/RD42-TestBeams/2017/cern_RD42_06_2017/output'
         self.analysis_path = '/home/sandiego/Small3dAnalysis'
 
         self.dut_num = 1
@@ -85,6 +82,8 @@ class Settings:
         self.event_per_file = 10000
         self.tel_mem = 2048
         self.dut_mem = 256
+        self.struct_fmt = '>IIIiiiII8i8iihh2i2048B256HI'  # big-endian
+
         self.file_name = ''
         self.tree_name = ''
 
@@ -122,10 +121,10 @@ class Settings:
                         self.data_dir = pars.get('BASIC', 'data_dir')
                         if not os.path.isdir(self.data_dir):
                             ExitMessage('The specified data directory does not exist. Exiting...')
-                    if pars.has_option('BASIC', 'output_dir'):
-                        self.output_dir = pars.get('BASIC', 'output_dir')
                     if pars.has_option('BASIC', 'sub_dir'):
                         self.sub_dir = pars.get('BASIC', 'sub_dir')
+                    if pars.has_option('BASIC', 'output_dir'):
+                        self.output_dir = pars.get('BASIC', 'output_dir')
                     if pars.has_option('BASIC', 'analysis_path'):
                         self.analysis_path = pars.get('BASIC', 'analysis_path')
                         if not os.path.isdir(self.analysis_path):
@@ -236,10 +235,23 @@ class Settings:
                     if pars.has_option('TRANSPARENT', 'analyse_align'):
                         self.do_analyse_alignment = pars.getboolean('TRANSPARENT', 'analyse_align')
         self.SetFileAndTreeName()
+        CreateDirectoryIfNecessary(self.output_dir + '/' + self.sub_dir + '/' + str(self.run))
+        self.SaveSettingsAsPickle()
 
     def SetFileAndTreeName(self):
         self.tree_name = 'run_{r}_{s}'.format(r=self.run, s=self.sub_dir)
         self.file_name = 'run_{r}_{s}'.format(r=self.run, s=self.sub_dir)
+
+    def SaveSettingsAsPickle(self):
+        with open('{d}/{s}/{r}/{f}.settings'.format(d=self.output_dir, s=self.sub_dir, r=self.run, f=self.file_name), 'wb') as fs:
+            pickle.dump(self, fs, pickle.HIGHEST_PROTOCOL)
+        
+    def LoadExistingSettingsBinary(self):
+        if os.path.isfile('{d}/{s}/{r}/{f}.settings'.format(d=self.output_dir, s=self.sub_dir, r=self.run, f=self.file_name)):
+            with open('{d}/{s}/{r}/{f}.settings'.format(d=self.output_dir, s=self.sub_dir, r=self.run, f=self.file_name), 'rb') as fs:
+                saved_set = pickle.load(fs)
+                self.__dict__.update(saved_set)
+
 
 if __name__ == '__main__':
     z = Settings()
