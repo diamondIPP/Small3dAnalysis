@@ -21,7 +21,7 @@ class Converter:
         self.sub_dir = self.settings.sub_dir
         self.ana_dir = self.settings.analysis_path
         self.run = self.settings.run
-        self.do_conversion = self.Check_If_Already_Converted()
+        self.do_conversion = not self.Check_If_Already_Converted()
         self.num_events_per_job = int(self.ana_events) / int(self.num_parallel)
         self.event_saver_processes = []
         self.merge_process = None
@@ -29,31 +29,31 @@ class Converter:
     def Check_If_Already_Converted(self):
         if not os.path.isfile('{o}/{s}/{r}/{f}.root'.format(o=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name)):
             print 'The root file does not exist. Conversion started from event {ev0} until event {evf}.'.format(ev0=self.first_ev, evf=self.first_ev + self.ana_events - 1)
-            return True
+            return False
         else:
             tempf = ro.TFile('{o}/{s}/{r}/{f}.root'.format(o=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name))
             if tempf.IsZombie():
                 print 'The existing root file cannot be opened. It will be re-written. Conversion started from event {ev0} until event {evf}.'.format(ev0=self.first_ev, evf=self.first_ev + self.ana_events - 1)
                 tempf.Close()
-                return True
+                return False
             tempt = tempf.Get(self.tree_name)
             if not tempt:
                 print 'The root file does not have the tree', self.tree_name, '. It will be created. Conversion started from event {ev0} until event {evf}.'.format(ev0=self.first_ev, evf=self.first_ev + self.ana_events - 1)
                 tempf.Close()
-                return True
+                return False
             elif tempt.GetEntries() < self.ana_events:
                 print 'The root file does not have enough events. It will be re-written. Conversion started from event {ev0} until event {evf}.'.format(ev0=self.first_ev, evf=self.first_ev + self.ana_events - 1)
                 tempf.Close()
-                return True
+                return False
             elif tempt.GetEntries() == self.ana_events:
                 print 'The root file has enough events. Skipping conversion'
                 tempf.Close()
-                return False
+                return True
             else:
                 print 'The root file has more events than requested. The requested events will be extracted from this file, assuming that the root file contains all the events measured during the run. No conversion will be done.'
                 tempf.Close()
                 self.ExtractEventsFromOriginalFile()
-                return False
+                return True
 
     def ExtractEventsFromOriginalFile(self):
         if os.path.isfile('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name)):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os, shutil, sys
 import progressbar
+import ROOT as ro
 
 class Utils:
 	def __init__(self):
@@ -64,6 +65,24 @@ def CloseSubprocess(p, stdin=False, stdout=False):
 			ExitMessage('The process does not die... quitting program')
 	del p, pid
 	p = None
+
+def CheckBranchExistence(file_name, tree_name, branch):
+	if not os.path.isfile(file_name):
+		ExitMessage('The root file {f} does not exist. Needs conversion. Exiting...'.format(f=file_name), os.EX_OSFILE)
+	else:
+		tempf = ro.TFile(file_name, 'READ')
+		if tempf.IsZombie():
+			tempf.Close()
+			ExitMessage('The root file {f} cannot be opened. Exiting'.format(f=file_name), os.EX_OSFILE)
+		tempt = tempf.Get(tree_name)
+		if not tempt:
+			ExitMessage('The root file {f} does not have the tree {t}. Exiting'.format(f=file_name, t=tree_name))
+		elif not tempt.GetLeaf(branch):
+			print 'The tree', tree_name, 'does not have the branch', branch
+			return False
+		else:
+			print 'The tree', tree_name, 'has the branch', branch
+			return True
 
 # def IsInt(i):
 # 	try:

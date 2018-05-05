@@ -1,16 +1,14 @@
 # from ROOT import TFile, gSystem, TStopwatch, TDatime, TTree, TH1F
 import ROOT as ro
 from optparse import OptionParser
-from time import time
+import os, logging, sys, shutil
+sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!! NEEDED TO RUN IN BATCH!!! CHANGE ACCORDINGLY
 from Settings import Settings
-from RawEventReader import RawEventReader
-from ADCEventReader import ADCEventReader
-from HistogramSaver import HistogramSaver
+from Utils import *
 # from numpy import array, zeros, extract, bitwise_and, full, isnan, reshape, repeat, append, empty, ndenumerate
 import numpy as np
 from collections import deque
 from copy import deepcopy
-import os, logging
 import ipdb
 from joblib import Parallel, delayed
 import multiprocessing as mp
@@ -21,11 +19,21 @@ class PedestalCalculations:
     def __init__(self, settings=Settings()):
         print 'Creating PedestalCalculations instance'
         self.settings = settings
+        self.out_dir = self.settings.output_dir
+        self.sub_dir = self.settings.sub_dir
+        self.file_name = self.settings.file_name
         self.slide_leng = self.settings.sliding_length
+        self.ped_branches = ['diaPed', 'diaPedSigma', 'cm', 'diaPedCmc', 'diaPedSigmaCmc', 'diaSignal', 'diaSignalCmc']
+        self.has_ped_branch = {branch: CheckBranchExistence('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), branch=branch) for branch in self.ped_branches}
+        self.do_pedestal_calculations = not np.all(self.has_ped_branch.values())
+
 
     def Insert_Value_In_Buffer(self, buff=np.zeros(500), val=0):
         np.putmask(buff, np.bitwise_not(np.zeros(self.slide_leng, '?')), np.roll(buff, -1))
         buff[buff == buff.item(-1)] = val
+
+    def CalculatePedestals(self):
+        pass
 
         self.run = array(self.settings.runInfo['run'], 'I')
         self.eventNumber = array(0, 'I')
