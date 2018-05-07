@@ -25,9 +25,9 @@ class RawEventSaver:
         self.tree_name = self.settings.tree_name
 
         self.eventNumber = np.zeros(1, 'I')
-        self.tel_ADC = np.zeros((self.settings.telDetectors, self.settings.telDetChs), 'B')  # unsigned char
-        self.dut_ADC = np.zeros(self.settings.dutDetChs, 'H')  # unsigned short (int16)
-        self.dut_chs = np.arange(0, self.settings.dutDetChs, dtype='B')  # unsigned char
+        self.tel_ADC = np.zeros((self.settings.telDetectors, self.settings.telDetChs), self.settings.tel_np_data_type)  # unsigned char ('B'; uint8)
+        self.dut_ADC = np.zeros(self.settings.dutDetChs, self.settings.dut_np_data_type)  # unsigned short ('H', uint16)
+        self.dut_chs = np.arange(0, self.settings.dutDetChs, dtype='B')  # unsigned char ('B', uint8)
 
         self.rawEventReader = RawEventReader(self.settings)
         self.rawFile = ro.TFile('{o}/{s}/{r}/{f}_{j}.root'.format(o=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name, j=self.job), 'RECREATE')
@@ -71,15 +71,15 @@ class RawEventSaver:
         self.CloseAll()
 
     def SetBranches(self):
-        self.rawTree.Branch('D0X_ADC', self.tel_ADC[0], 'D0X_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D0Y_ADC', self.tel_ADC[1], 'D0Y_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D1X_ADC', self.tel_ADC[2], 'D1X_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D1Y_ADC', self.tel_ADC[3], 'D1Y_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D2X_ADC', self.tel_ADC[4], 'D2X_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D2Y_ADC', self.tel_ADC[5], 'D2Y_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D3X_ADC', self.tel_ADC[6], 'D3X_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('D3Y_ADC', self.tel_ADC[7], 'D3Y_ADC[{chs}]/b'.format(chs=self.settings.telDetChs))
-        self.rawTree.Branch('DiaADC', self.dut_ADC, 'DiaADC[{chs}]/s'.format(chs=self.settings.dutDetChs))
+        self.rawTree.Branch('D0X_ADC', self.tel_ADC[0], 'D0X_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D0Y_ADC', self.tel_ADC[1], 'D0Y_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D1X_ADC', self.tel_ADC[2], 'D1X_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D1Y_ADC', self.tel_ADC[3], 'D1Y_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D2X_ADC', self.tel_ADC[4], 'D2X_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D2Y_ADC', self.tel_ADC[5], 'D2Y_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D3X_ADC', self.tel_ADC[6], 'D3X_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('D3Y_ADC', self.tel_ADC[7], 'D3Y_ADC[{chs}]/{t}'.format(t=self.settings.tel_root_data_type, chs=self.settings.telDetChs))
+        self.rawTree.Branch('DiaADC', self.dut_ADC, 'DiaADC[{chs}]/{t}'.format(t=self.settings.dut_root_data_type, chs=self.settings.dutDetChs))
         self.rawTree.Branch('diaChannel', self.dut_chs, 'diaChannel[{chs}]/b'.format(chs=self.settings.dutDetChs))
         self.rawTree.Branch('event', self.eventNumber, 'event/i')
 

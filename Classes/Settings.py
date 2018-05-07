@@ -82,8 +82,12 @@ class Settings:
         self.event_per_file = 10000
         self.tel_mem = 2048
         self.dut_mem = 256
+        self.tel_np_data_type, self.tel_root_data_type = 'uint8', 'b'
+        self.dut_np_data_type, self.dut_root_data_type = 'uint16', 's'
+        self.endian = '>'  # > for big-endian, < for little-endian
         self.struct_fmt = '>IIIiiiII8i8iihh2i2048B256HI'  # big-endian
         self.sliding_length = 500
+
 
         self.file_name = ''
         self.tree_name = ''
