@@ -32,8 +32,15 @@ class PedestalCalculations:
         self.rootFile = None
         self.rootTree = None
 
-        self.dut_ADC = np.zeros(self.slide_leng, dtype=self.settings.dut_np_data_type)
-        self.tel_ADC = {det: np.zeros(self.slide_leng, dtype=self.settings.tel_np_data_type) for det in xrange(self.settings)}
+        self.dut_ADC = np.zeros((self.settings.dutDetChs, self.slide_leng), dtype=self.settings.dut_np_data_type)
+        self.tel_ADC = {det: np.zeros((self.settings.telDetChs, self.slide_leng), dtype=self.settings.tel_np_data_type) for det in xrange(self.settings.telDetectors)}
+
+        self.tel_ADC_mean = {det: np.zeros(self.settings.telDetectors, dtype='float32') for det in xrange(self.settings.telDetectors)}
+        self.tel_ADC_sigma = {det: np.zeros(self.settings.telDetectors, dtype='float32') for det in xrange(self.settings.telDetectors)}
+        self.tel_ADC_snr = {det: np.zeros(self.settings.telDetectors, dtype='float32') for det in xrange(self.settings.telDetectors)}
+        self.dut_ADC_mean = np.zeros(self.settings.dutDetChs, dtype='float32')
+        self.dut_ADC_sigma = np.zeros(self.settings.dutDetChs, dtype='float32')
+        self.dut_ADC_snr = np.zeros(self.settings.dutDetChs, dtype='float32')
 
 
     def CalculatePedestals(self):
@@ -41,7 +48,18 @@ class PedestalCalculations:
 
     def CalculateStartingPedestals(self):
         Open_RootFile_Load_Tree(self.rootFile, self.rootTree, '{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), treename=self.tree_name, mode='READ')
-        Draw_Branches_For_Get_Val(self.rootTree, self.raw_tel_branches_dic.values())
+        Draw_Branches_For_Get_Val(self.rootTree, self.raw_tel_branches_dic.values(), start_ev=0, n_entries=self.slide_leng, option='goff para')
+        Get_Branches_Value_To_Numpy(self.rootTree, self.raw_tel_branches_dic.values(), self.tel_ADC.values(), self.slide_leng, self.settings.telDetChs)
+        Draw_Branches_For_Get_Val(self.rootTree, [self.raw_dut_branch], start_ev=0, n_entries=self.slide_leng, option='goff')
+        Get_Branches_Value_To_Numpy(self.rootTree, [self.raw_dut_branch], [self.dut_ADC], n_entries=self.slide_leng, elements_per_ev=self.settings.dutDetChs)
+
+        for det, array_d in self.tel_ADC.iteritems():
+            np.putmask(self.tel_ADC_mean[det], np.ones(self.settings.telDetChs, '?'), array_d.mean(1))
+            np.putmask(self.tel_ADC_sigma[det], np.ones(self.settings.telDetChs, '?'), array_d.std(1))
+
+        np.putmask(self.dut_ADC_mean, np.ones(self.settings.dutDetChs, '?'), self.dut_ADC.mean(1))
+        np.putmask(self.dut_ADC_sigma, np.ones(self.settings.dutDetChs, '?'), self.dut_ADC.std(1))
+
 
 
         self.run = array(self.settings.runInfo['run'], 'I')

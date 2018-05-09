@@ -132,8 +132,18 @@ def Draw_Branches_For_Get_Val(tree_r, list_bra=[], start_ev=0, n_entries=1, cut=
 		tree_r.SetEstimate(leng)
 		leng = tree_r.Draw(':'.join(list_bra), cut, draw_opt, n_entries, start_ev)
 
+def Get_Branches_Value_To_Numpy(tree_r, list_bra=[], list_numpy_arrays=[], n_entries=1, elements_per_ev=1):
+	for val, arr in enumerate(list_numpy_arrays):
+		Branch_List_To_Array(tree_r.GetVal(val), arr, n_entries, elements_per_ev)
+
+def Branch_List_To_Array(bra_list, array_v=np.zeros((128,500)), n_entries=1, vec_size=1):
+	if vec_size == 1:
+		np.putmask(array_v, np.ones(n_entries, dtype='?'), [bra_list[ev] for ev in xrange(n_entries)])
+	else:
+		np.putmask(array_v, np.ones((vec_size, n_entries), dtype='?'), [[bra_list[ev * vec_size + ch] for ev in xrange(n_entries)] for ch in xrange(vec_size)])
+
 def Insert_Value_In_Buffer_Array(array_v=np.zeros(500), val=0, slide_leng=500):
-	np.putmask(array_v, np.bitwise_not(np.zeros(slide_leng, '?')), np.roll(array_v, -1))
+	np.putmask(array_v, np.ones(slide_leng, '?'), np.roll(array_v, -1))
 	array_v[-1] = val
 
 # def IsInt(i):
