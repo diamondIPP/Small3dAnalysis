@@ -85,43 +85,26 @@ def CheckBranchExistence(file_name, tree_name, branch):
 			print 'The tree', tree_name, 'has the branch', branch
 			return True
 
-def Open_RootFile_Load_Tree(file_f=None, tree_t=None, path='', treename='', mode='read'):
-	if not file_f:
-		file_f = ro.TFile(path, mode)
-		if file_f.IsZombie():
-			ExitMessage('The file {f} could not be opened. Exiting...'.format(f=path), os.EX_OSFILE)
-		Get_Tree_From_TFile(file_f, tree_t, treename)
-	elif file_f.IsZombie():
-		ExitMessage('The file is zombie... Exiting', os.EX_OSFILE)
-	elif file_f.IsOpen():
-		if file_f.GetOption().lower() != mode.lower():
-			temp = file_f.ReOpen(mode)
-			if temp == 1:
-				tree_t = file_f.Get(treename)
-				if not tree_t:
-					ExitMessage('The file {f} does not have the tree {t}. Exiting...'.format(f=path, t=treename))
-			elif temp == 0:
-				print 'The mode did not change. Either it was already {m} or {m} is not a correct mode'.format(m=mode)
-				tree_t = file_f.Get(treename)
-				if not tree_t:
-					ExitMessage('The file {f} does not have the tree {t}. Exiting...'.format(f=path, t=treename))
-			else:
-				ExitMessage('The file could not be reopened. Exiting...')
-	else:
-		file_f = ro.TFile(path, mode)
-		if file_f.IsZombie():
-			ExitMessage('The file {f} could not be opened. Exiting...'.format(f=path), os.EX_OSFILE)
-		Get_Tree_From_TFile(file_f, tree_t, treename)
+def Open_RootFile_Load_Tree(path='', treename='', mode='read'):
+	file_f = ro.TFile(path, mode)
+	if file_f.IsZombie():
+		ExitMessage('The file {f} could not be opened. Exiting...'.format(f=path), os.EX_OSFILE)
+	tree_t = Get_Tree_From_TFile(file_f, treename)
+	return file_f, tree_t
 
-def Get_Tree_From_TFile(file_f, tree_t, treename=''):
+def Get_Tree_From_TFile(file_f, treename=''):
 	tree_t = file_f.Get(treename)
 	if not tree_t:
 		ExitMessage('The file does not have the tree {t}. Exiting...'.format(t=treename))
+	return tree_t
 
 def Select_Branches_For_Get_Val(tree_r, list_bra=[]):
 	tree_r.SetBranchStatus('*', 0)
 	for bra in list_bra:
-		tree_r.SetBranchStatus(bra, 1)
+		if '[' in bra:
+			tree_r.SetBranchStatus(bra.split('[')[0], 1)
+		else:
+			tree_r.SetBranchStatus(bra, 1)
 
 def Draw_Branches_For_Get_Val(tree_r, list_bra=[], start_ev=0, n_entries=1, cut='', option='goff'):
 	draw_opt = option + ' para' if len(list_bra) > 3 and 'para' not in option else option

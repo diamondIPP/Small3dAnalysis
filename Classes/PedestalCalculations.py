@@ -47,7 +47,7 @@ class PedestalCalculations:
         self.CalculateStartingPedestals()
 
     def CalculateStartingPedestals(self):
-        Open_RootFile_Load_Tree(self.rootFile, self.rootTree, '{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), treename=self.tree_name, mode='READ')
+        self.rootFile, self.rootTree = Open_RootFile_Load_Tree('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), treename=self.tree_name, mode='READ')
         Draw_Branches_For_Get_Val(self.rootTree, self.raw_tel_branches_dic.values(), start_ev=0, n_entries=self.slide_leng, option='goff para')
         Get_Branches_Value_To_Numpy(self.rootTree, self.raw_tel_branches_dic.values(), self.tel_ADC.values(), self.slide_leng, self.settings.telDetChs)
         Draw_Branches_For_Get_Val(self.rootTree, [self.raw_dut_branch], start_ev=0, n_entries=self.slide_leng, option='goff')
