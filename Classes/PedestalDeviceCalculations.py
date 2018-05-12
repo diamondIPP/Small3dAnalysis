@@ -41,11 +41,11 @@ class PedestalDeviceCalculations:
         self.np_type = self.settings.dut_np_data_type if self.device == 'dut' else self.settings.tel_np_data_type
         self.chs = self.settings.dutDetChs if self.device == 'dut' else self.settings.telDetChs
         self.device_ADC = np.zeros((self.chs, self.slide_leng), dtype=self.np_type)
-        self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float32')
-        self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float32')
-        self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float32')
-        self.device_ADC_mean = np.zeros((self.chs, self.ana_events), dtype='float32')
-        self.device_ADC_sigma = np.zeros((self.chs, self.ana_events), dtype='float32')
+        self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float64')
+        self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float64')
+        self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float64')
+        self.device_ADC_mean = np.zeros((self.chs, self.ana_events), dtype='float64')
+        self.device_ADC_sigma = np.zeros((self.chs, self.ana_events), dtype='float64')
         self.device_ADC_is_ped = np.zeros((self.chs, self.ana_events), dtype='?')
         self.device_ADC_is_hit = np.zeros((self.chs, self.ana_events), dtype='?')
         self.device_ADC_is_seed = np.zeros((self.chs, self.ana_events), dtype='?')
@@ -54,9 +54,9 @@ class PedestalDeviceCalculations:
         # self.sigma_con = np.zeros(self.chs, dtype='?')
 
         self.adc = np.zeros(self.chs, dtype=self.np_type)
-        self.mean = np.zeros(self.chs, dtype='float32')
-        self.sigma = np.zeros(self.chs, dtype='float32')
-        self.mean_sq = np.zeros(self.chs, dtype='float32')
+        self.mean = np.zeros(self.chs, dtype='float64')
+        self.sigma = np.zeros(self.chs, dtype='float64')
+        self.mean_sq = np.zeros(self.chs, dtype='float64')
         self.elem = np.zeros(self.chs, dtype='uint16')
 
         self.device_ADC_all = np.zeros((self.chs, self.ana_events), dtype=self.np_type)
@@ -111,10 +111,12 @@ class PedestalDeviceCalculations:
             condition_s = np.bitwise_and(np.bitwise_not(condition_p), np.bitwise_not(condition_h))
 
             mean1 = self.mean
-            mean2 = (self.mean * self.elem - adc_old) / (self.elem - 1.0)
+            # mean2 = (self.mean * self.elem - adc_old) / (self.elem - 1.0)
+            mean2 = np.divide(np.subtract(np.multiply(self.mean, self.elem, dtype='float64'), adc_old, dtype='float64'), np.subtract(self.elem, 1.0, dtype='float64'), dtype='float64')
 
             mean1_sq = self.mean_sq
-            mean2_sq = (self.mean_sq * self.elem - adc_old ** 2) / (self.elem - 1.0)
+            # mean2_sq = (self.mean_sq * self.elem - adc_old ** 2) / (self.elem - 1.0)
+            mean2_sq = np.divide(np.subtract(np.multiply(self.mean_sq, self.elem, dtype='float64'), np.power(adc_old, 2.0, dtype='float64'), dtype='float64'), np.subtract(self.elem, 1.0, dtype='float64'), dtype='float64')
 
             elem1 = self.elem
             elem2 = self.elem - 1
@@ -125,10 +127,12 @@ class PedestalDeviceCalculations:
             self.elem = np.where(condition_old, elem2, elem1)
 
             mean1 = self.mean
-            mean2 = (self.mean * self.elem + adc_new) / (self.elem + 1.0)
+            # mean2 = (self.mean * self.elem + adc_new) / (self.elem + 1.0)
+            mean2 = np.divide(np.add(np.multiply(self.mean, self.elem, dtype='float64'), adc_new, dtype='float64'), np.add(self.elem, 1.0, dtype='float64'), dtype='float64')
 
             mean1_sq = self.mean_sq
-            mean2_sq = (self.mean_sq * self.elem + adc_new ** 2) / (self.elem + 1.0)
+            # mean2_sq = (self.mean_sq * self.elem + adc_new ** 2) / (self.elem + 1.0)
+            mean2_sq = np.divide(np.add(np.multiply(self.mean_sq, self.elem, dtype='float64'), np.power(adc_new, 2.0, dtype='float64'), dtype='float64'), np.add(self.elem, 1.0, dtype='float64'), dtype='float64')
 
             elem1 = self.elem
             elem2 = self.elem + 1
@@ -136,10 +140,9 @@ class PedestalDeviceCalculations:
             self.mean = np.where(condition_p, mean2, mean1)
             self.mean_sq = np.where(condition_p, mean2_sq, mean1_sq)
             self.elem = np.where(condition_p, elem2, elem1)
-            if (self.mean_sq <= self.mean **2).any():
-                ipdb.set_trace()
 
-            self.sigma = (self.mean_sq - self.mean ** 2) ** 0.5
+            # self.sigma = (self.mean_sq - self.mean ** 2) ** 0.5
+            self.sigma = np.sqrt(np.subtract(self.mean_sq, np.power(self.mean, 2.0, dtype='float64'), dtype='float64'), dtype='float64')
 
             self.device_ADC_mean[:, ev] = self.mean
             self.device_ADC_sigma[:, ev] = self.sigma
@@ -222,9 +225,9 @@ class PedestalDeviceCalculations:
         print 'Done in', time.time() - time0, 'seconds'
         self.device_ADC = self.device_ADC_all[:, :self.slide_leng]
 
-        for ch, value in enumerate(self.device_ADC.mean(1)):
+        for ch, value in enumerate(self.device_ADC.mean(1, dtype='float64')):
             self.device_ADC_mean[ch,:self.slide_leng] = value
-        for ch, value in enumerate(self.device_ADC.std(1)):
+        for ch, value in enumerate(self.device_ADC.std(1, dtype='float64')):
             self.device_ADC_sigma[ch,:self.slide_leng] = value
         for ch in xrange(self.chs):
             self.device_ped[ch].fill(self.device_ADC_mean[ch, 0])
@@ -236,10 +239,10 @@ class PedestalDeviceCalculations:
             condition_s = np.bitwise_and(np.bitwise_not(condition_p), np.bitwise_not(condition_h))
             adc_cond = [np.extract(condition_p[ch], self.device_ADC[ch]) for ch in xrange(self.chs)]
             for ch, adc_cond_i in enumerate(adc_cond):
-                self.device_ADC_mean[ch].fill(adc_cond_i.mean())
-                self.device_ADC_sigma[ch].fill(adc_cond_i.std())
-                self.device_ped[ch].fill(adc_cond_i.mean())
-                self.device_sigma[ch].fill(adc_cond_i.std())
+                self.device_ADC_mean[ch].fill(adc_cond_i.mean(dtype='float64'))
+                self.device_ADC_sigma[ch].fill(adc_cond_i.std(dtype='float64'))
+                self.device_ped[ch].fill(adc_cond_i.mean(dtype='float64'))
+                self.device_sigma[ch].fill(adc_cond_i.std(dtype='float64'))
             self.device_signal = self.device_ADC - self.device_ped
             self.device_ADC_is_ped[:, :self.slide_leng] = condition_p
             self.device_ADC_is_hit[:, :self.slide_leng] = condition_h
@@ -247,7 +250,7 @@ class PedestalDeviceCalculations:
 
         self.mean = self.device_ADC_mean[:, 0]
         self.sigma = self.device_ADC_sigma[:, 0]
-        self.mean_sq = np.power(self.sigma, 2) + np.power(self.mean, 2)
+        self.mean_sq = np.add(np.power(self.sigma, 2), np.power(self.mean, 2), dtype='float64')
         self.elem = self.device_ADC_is_ped[:, :self.slide_leng].sum(axis=1)
 
 
