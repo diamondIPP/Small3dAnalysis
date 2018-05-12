@@ -125,9 +125,21 @@ def Branch_List_To_Array(bra_list, array_v=np.zeros((128,500)), n_entries=1, vec
 	else:
 		np.putmask(array_v, np.ones((vec_size, n_entries), dtype='?'), [[bra_list[ev * vec_size + ch] for ev in xrange(n_entries)] for ch in xrange(vec_size)])
 
-def Insert_Value_In_Buffer_Array(array_v=np.zeros(500), val=0, slide_leng=500):
-	np.putmask(array_v, np.ones(slide_leng, '?'), np.roll(array_v, -1))
+def Read_Single_Value_Event(tree_t, event=0, branch='event'):
+	tree_t.GetEntry(event)
+	value = eval('tree_t.{b}'.format(t=tree_t, b=branch))
+	if type(value) == type('a'):
+		return ord(value)
+	return value
+
+# def Insert_Value_In_Buffer_Array(array_v=np.zeros(500), val=0, slide_leng=500):
+# 	np.putmask(array_v, np.ones(slide_leng, '?'), np.roll(array_v, -1))
+# 	array_v[-1] = val
+
+def Insert_Value_In_Buffer_Array(array_v=np.zeros(500), val=0):
+	array_v = np.roll(array_v, -1)
 	array_v[-1] = val
+	return array_v
 
 # def IsInt(i):
 # 	try:
