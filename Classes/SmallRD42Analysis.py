@@ -5,7 +5,7 @@ import ROOT as ro
 from optparse import OptionParser
 from Settings import Settings
 from Converter import Converter
-# from PedestalCalculations import PedestalCalculations
+from PedestalCalculations import PedestalCalculations
 from Utils import *
 
 __author__ = 'DA'
@@ -31,9 +31,10 @@ class SmallRD42Analysis:
         self.converter = Converter(self.settings)
         if self.converter.do_conversion:
             self.converter.Convert()
-        # self.pedestals = PedestalCalculations()
-        # if self.pedestals.do_pedestal_calculations:
-        #     self.pedestals.CalculatePedestals()
+        self.pedestals = PedestalCalculations(self.settings)
+        if self.pedestals.do_pedestal_calculations:
+            self.pedestals.CalculatePedestals()
+            # self.pedestals.CalculateDevicesPedestals()
         # if self.settings.do_pedestal:
         #     pass  # Make a pedestalAnalysis class
 

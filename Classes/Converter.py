@@ -89,10 +89,7 @@ class Converter:
             for job_i in xrange(self.num_parallel):
                 while self.event_saver_processes[job_i].poll() is None:
                     continue
-                if job_i != self.num_parallel - 1:
-                    CloseSubprocess(self.event_saver_processes[job_i], stdin=True, stdout=False)
-                else:
-                    CloseSubprocess(self.event_saver_processes[job_i], stdin=True, stdout=False)
+                CloseSubprocess(self.event_saver_processes[job_i], stdin=True, stdout=False)
                 print 'Done with events:', self.first_ev + job_i * self.num_events_per_job, '-', self.first_ev + (job_i + 1) * self.num_events_per_job - 1
         self.MergeOutputFiles()
 

@@ -36,8 +36,8 @@ def CreateDirectoryIfNecessary(dir):
 		os.makedirs(dir)
 		print 'Done'
 
-def ExitMessage(txt, value=os.EX_SOFTWARE):
-	print txt
+def ExitMessage(txt='', value=os.EX_SOFTWARE):
+	if txt != '': print txt
 	sys.exit(value)
 
 def CloseSubprocess(p, stdin=False, stdout=False):
