@@ -24,7 +24,7 @@ class PedestalCalculations:
         self.file_name = self.settings.file_name
         self.run = self.settings.run
         self.tree_name = self.settings.tree_name
-        self.num_parallel = self.settings.num_parallel - 1
+        self.num_parallel = self.settings.num_parallel
         self.slide_leng = self.settings.sliding_length
         self.ana_dir = self.settings.analysis_path
         self.ped_branches = ['diaPed', 'diaPedSigma', 'cm', 'diaPedCmc', 'diaPedSigmaCmc', 'diaSignal', 'diaSignalCmc']
@@ -137,7 +137,7 @@ class PedestalCalculations:
             del manager, out_dic
             # while any(thread.is_alive() for thread in self.device_ped_process):
             #     continue
-            ipdb.set_trace()
+        ipdb.set_trace()
 
 
 
