@@ -10,13 +10,17 @@ import pickle
 import time
 import ipdb
 # from threading import Thread
-from multiprocessing import Process, Lock
+# from multiprocessing import Process, Lock
+import multiprocessing as mp
+# import multiprocessing.sharedctypes as mpsc
 
 __author__ = 'DA'
 
-class PedestalDeviceCalculations2(Process):
-    def __init__(self, settings_bin_path='', device='dut', show_progressbar=False, out_dic=None):
-        Process.__init__(self)
+
+
+class PedestalDeviceCalculations2(mp.Process):
+    def __init__(self, settings_bin_path, device, show_progressbar, input_adc_array, out_array_mean, out_array_sigma, out_array_is_hit, out_array_is_seed, det_index):
+        mp.Process.__init__(self)
         print 'Creating PedestalCalculations instance'
         self.show_pb = show_progressbar
         self.settings = Settings()
@@ -46,27 +50,41 @@ class PedestalDeviceCalculations2(Process):
         self.np_type = self.settings.dut_np_data_type if self.device == 'dut' else self.settings.tel_np_data_type
         self.chs = self.settings.dutDetChs if self.device == 'dut' else self.settings.telDetChs
         self.device_ADC = np.zeros((self.chs, self.slide_leng), dtype=self.np_type)
-        self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float64')
-        self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float64')
-        self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float64')
-        self.device_ADC_mean = np.zeros((self.chs, self.ana_events), dtype='float64')
-        self.device_ADC_sigma = np.zeros((self.chs, self.ana_events), dtype='float64')
+        self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        self.device_ADC_mean = np.zeros((self.chs, self.ana_events), dtype='float32')
+        self.device_ADC_sigma = np.zeros((self.chs, self.ana_events), dtype='float32')
         self.device_ADC_is_ped = np.zeros((self.chs, self.ana_events), dtype='?')
         self.device_ADC_is_hit = np.zeros((self.chs, self.ana_events), dtype='?')
         self.device_ADC_is_seed = np.zeros((self.chs, self.ana_events), dtype='?')
 
         self.adc = np.zeros(self.chs, dtype=self.np_type)
-        self.mean = np.zeros(self.chs, dtype='float64')
-        self.sigma = np.zeros(self.chs, dtype='float64')
-        self.mean_sq = np.zeros(self.chs, dtype='float64')
+        self.mean = np.zeros(self.chs, dtype='float32')
+        self.sigma = np.zeros(self.chs, dtype='float32')
+        self.mean_sq = np.zeros(self.chs, dtype='float32')
         self.elem = np.zeros(self.chs, dtype='uint16')
 
-        self.device_ADC_all = np.zeros((self.chs, self.ana_events), dtype=self.np_type)
-        self.out_dic = out_dic
+        # self.device_ADC_all = np.zeros((self.chs, self.ana_events), dtype=self.np_type)
+        global in_adc_array
+        in_adc_array = input_adc_array
+        global out_array_m
+        out_array_m = out_array_mean
+        global out_array_s
+        out_array_s = out_array_sigma
+        global out_array_is_h
+        out_array_is_h = out_array_is_hit
+        global out_array_is_s
+        out_array_is_s = out_array_is_seed
+        self.det_index = det_index
+        if self.device.startswith('tel'):
+            self.device_ADC_all = np.ctypeslib.as_array(in_adc_array.get_obj())[self.det_index]
+        else:
+            self.device_ADC_all = np.ctypeslib.as_array(in_adc_array.get_obj())
 
-        # self.CalculatePedestals()
-        # self.SaveArrays()
-        # ExitMessage('', os.EX_OK)
+            # self.CalculatePedestals()
+            # self.SaveArrays()
+            # ExitMessage('', os.EX_OK)
 
     def LoadSettingsBinary(self, settings_path):
         if os.path.isfile(settings_path):
@@ -137,20 +155,32 @@ class PedestalDeviceCalculations2(Process):
             self.utils.bar.finish()
             t0 = time.time()
             print 'Appending arrays to output...', ; sys.stdout.flush()
-        self.out_dic[self.device] = {'mean': self.device_ADC_mean.astype('float32'), 'sigma': self.device_ADC_sigma.astype('float32'), 'is_hit': self.device_ADC_is_hit, 'is_seed': self.device_ADC_is_seed}
+        # self.out_dic[self.device] = {'mean': self.device_ADC_mean.astype('float32'), 'sigma': self.device_ADC_sigma.astype('float32'), 'is_hit': self.device_ADC_is_hit, 'is_seed': self.device_ADC_is_seed}
+
+        if self.device.startswith('tel'):
+            np.ctypeslib.as_array(out_array_m.get_obj())[self.det_index] = self.device_ADC_mean
+            np.ctypeslib.as_array(out_array_s.get_obj())[self.det_index] = self.device_ADC_sigma
+            np.ctypeslib.as_array(out_array_is_h.get_obj())[self.det_index] = self.device_ADC_is_hit.astype('uint8')
+            np.ctypeslib.as_array(out_array_is_s.get_obj())[self.det_index] = self.device_ADC_is_seed.astype('uint8')
+        else:
+            np.ctypeslib.as_array(out_array_m.get_obj())[:] = self.device_ADC_mean
+            np.ctypeslib.as_array(out_array_s.get_obj())[:] = self.device_ADC_sigma
+            np.ctypeslib.as_array(out_array_is_h.get_obj())[:] = self.device_ADC_is_hit.astype('uint8')
+            np.ctypeslib.as_array(out_array_is_s.get_obj())[:] = self.device_ADC_is_seed.astype('uint8')
         if self.show_pb:
             print 'Done in', time.time() - t0, 'seconds'
 
     def CalculateStartingPedestals(self):
-        self.rootFile, self.rootTree = Open_RootFile_Load_Tree('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run_no, f=self.file_name), treename=self.tree_name, mode='READ')
-        if self.show_pb:
-            time0 = time.time()
-            print 'Getting all events...', ; sys.stdout.flush()
-        Draw_Branches_For_Get_Val(self.rootTree, [self.read_branch], start_ev=0, n_entries=self.ana_events, option='goff')
-        Get_Branches_Value_To_Numpy(self.rootTree, [self.read_branch], [self.device_ADC_all], self.ana_events, self.chs)
-        self.rootFile.Close()
-        if self.show_pb:
-            print 'Done in', time.time() - time0, 'seconds'
+        # self.rootFile, self.rootTree = Open_RootFile_Load_Tree('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run_no, f=self.file_name), treename=self.tree_name, mode='READ')
+        # if self.show_pb:
+        #     time0 = time.time()
+        #     print 'Getting all events...', ; sys.stdout.flush()
+        # Draw_Branches_For_Get_Val(self.rootTree, [self.read_branch], start_ev=0, n_entries=self.ana_events, option='goff')
+        # Get_Branches_Value_To_Numpy(self.rootTree, [self.read_branch], [self.device_ADC_all], self.ana_events, self.chs)
+        # self.rootFile.Close()
+        # del self.rootTree, self.rootFile
+        # if self.show_pb:
+        #     print 'Done in', time.time() - time0, 'seconds'
         self.device_ADC = self.device_ADC_all[:, :self.slide_leng]
 
         for ch, value in enumerate(self.device_ADC.mean(1, dtype='float64')):
@@ -178,7 +208,7 @@ class PedestalDeviceCalculations2(Process):
 
         self.mean = self.device_ADC_mean[:, 0]
         self.sigma = self.device_ADC_sigma[:, 0]
-        self.mean_sq = np.add(np.power(self.sigma, 2), np.power(self.mean, 2), dtype='float64')
+        self.mean_sq = np.add(np.power(self.sigma, 2, dtype='float64'), np.power(self.mean, 2, dtype='float64'), dtype='float64')
         self.elem = self.device_ADC_is_ped[:, :self.slide_leng].sum(axis=1)
 
         del self.device_ADC, self.device_sigma, self.device_ped, self.device_signal

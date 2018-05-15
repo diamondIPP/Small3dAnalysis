@@ -25,6 +25,7 @@ class SmallRD42Analysis:
         # logging.basicConfig(filename='{ap}/../logs/analysis_log_{r}_{y}_{m}_{d}_{h}.{min}.{sec}.log'.format(ap=self.settings.analysis_path, r=self.settings.run, y=time.GetYear(), m=time.GetMonth(), d=time.GetDay(), h=time.GetHour(), min=time.GetMinute(), sec=time.GetSecond()), level=logging.DEBUG)
         CreateDirectoryIfNecessary('{d}/{s}/{r}'.format(d=self.settings.output_dir, s=self.settings.sub_dir, r=self.settings.run))
         self.converter = None
+        self.pedestals = None
 
     def Run_Analysis(self):
         CreateDirectoryIfNecessary(self.settings.output_dir + '/' + self.settings.sub_dir + '/' + str(self.settings.run))
