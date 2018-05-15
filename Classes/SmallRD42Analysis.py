@@ -33,8 +33,8 @@ class SmallRD42Analysis:
             self.converter.Convert()
         self.pedestals = PedestalCalculations(self.settings)
         if self.pedestals.do_pedestal_calculations:
-            self.pedestals.CalculatePedestals()
-            # self.pedestals.CalculateDevicesPedestals()
+            # self.pedestals.CalculatePedestals()
+            self.pedestals.CalculateDevicesPedestals2()
         # if self.settings.do_pedestal:
         #     pass  # Make a pedestalAnalysis class
 
