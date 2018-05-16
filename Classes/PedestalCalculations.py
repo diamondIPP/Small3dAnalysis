@@ -41,36 +41,9 @@ class PedestalCalculations:
         self.rootTree = ro.TTree()
         self.utils = Utils()
 
-        # self.tel_ADC_all = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype=self.settings.tel_np_data_type)
-        #
-        # self.tel_ADC_is_ped_buff = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='?')
-        # self.tel_ADC_is_hit_buff = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='?')
-        # self.tel_ADC_is_seed_buff = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='?')
-        # self.tel_ADC_mean = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='float64')
-        # self.tel_ADC_mean_sq = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='float64')
-        # self.tel_ADC_sigma = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='float64')
-        # self.tel_ADC_mean_elem = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='uint16')
-        # self.tel_ADC_is_hit = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='?')
-        # self.tel_ADC_is_seed = np.zeros((self.settings.telDetectors, self.settings.telDetChs), dtype='?')
-        #
-        # self.dut_ADC_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype=self.settings.dut_np_data_type)
-        #
-        # self.dut_ADC_is_ped_buff = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='?')
-        # self.dut_ADC_is_hit_buff = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='?')
-        # self.dut_ADC_is_seed_buff = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='?')
-        # self.dut_ADC_mean = np.zeros(self.settings.dutDetChs, dtype='float64')
-        # self.dut_ADC_mean_sq = np.zeros(self.settings.dutDetChs, dtype='float64')
-        # self.dut_ADC_sigma = np.zeros(self.settings.dutDetChs, dtype='float64')
-        # self.dut_ADC_mean_elem = np.zeros(self.settings.dutDetChs, dtype='uint16')
-        # self.dut_ADC_is_hit = np.zeros(self.settings.dutDetChs, dtype='?')
-        # self.dut_ADC_is_seed = np.zeros(self.settings.dutDetChs, dtype='?')
-        #
-        # tel_Hf = [np.ones((self.settings.telDetChs, self.slide_leng), dtype='uint8') * self.settings.clust_hit[i] for i in xrange(8)]
-        # tel_Sf = [np.ones((self.settings.telDetChs, self.slide_leng), dtype='uint8') * self.settings.clust_seed[i] for i in xrange(8)]
-        # self.tel_hf_array = np.append(np.append(np.append(np.append(np.append(np.append(np.append(tel_Hf[0], tel_Hf[1]), tel_Hf[2]), tel_Hf[3]), tel_Hf[4]), tel_Hf[5]), tel_Hf[6]), tel_Hf[7]).reshape(self.settings.telDetectors, self.settings.telDetChs, self.slide_leng)
-        # self.tel_sf_array = np.append(np.append(np.append(np.append(np.append(np.append(np.append(tel_Sf[0], tel_Sf[1]), tel_Sf[2]), tel_Sf[3]), tel_Sf[4]), tel_Sf[5]), tel_Sf[6]), tel_Sf[7]).reshape(self.settings.telDetectors, self.settings.telDetChs, self.slide_leng)
         self.dic_device_to_pos = {'telx0': 0, 'tely0': 1, 'telx1': 2, 'tely1': 3, 'telx2': 4, 'tely2': 5, 'telx3': 6, 'tely3': 7}
 
+        # Temporary numpy arrays to create the ctype vectors for multiprocessing with shared memory
         tel_ADC_mean_all = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='float32')
         tel_ADC_sigma_all = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='float32')
         tel_ADC_is_hit_all = np.zeros((self.settings.telDetectors, self.settings.telDetChs, self.settings.ana_events), dtype='uint8')
@@ -81,6 +54,7 @@ class PedestalCalculations:
         dut_ADC_is_hit_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
         dut_ADC_is_seed_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
 
+        # The ctype vectors that will be shared in the multiprocessing
         self.tel_ADC_mean_all_mp = mp.Array(np.ctypeslib.as_ctypes(tel_ADC_mean_all)._type_, np.ctypeslib.as_ctypes(tel_ADC_mean_all))
         self.tel_ADC_sigma_all_mp = mp.Array(np.ctypeslib.as_ctypes(tel_ADC_sigma_all)._type_, np.ctypeslib.as_ctypes(tel_ADC_sigma_all))
         self.tel_ADC_is_hit_all_mp = mp.Array(np.ctypeslib.as_ctypes(tel_ADC_is_hit_all)._type_, np.ctypeslib.as_ctypes(tel_ADC_is_hit_all))
@@ -92,6 +66,11 @@ class PedestalCalculations:
         self.dut_ADC_is_seed_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_seed_all))
         del tel_ADC_mean_all, tel_ADC_sigma_all, tel_ADC_is_hit_all, tel_ADC_is_seed_all, dut_ADC_mean_all, dut_ADC_sigma_all, dut_ADC_is_hit_all, dut_ADC_is_seed_all
 
+        # The masked channels for CM calculation. Noisy and screened channels.
+        t1 = np.arange(self.settings.dutDetChs)
+
+
+        # ctype vectors with all the ADC events for telescope and dut. The each process will read from this vectors
         self.tel_ADC_all_mp = self.LoadTelescopeADCs()
         self.dut_ADC_all_mp = self.LoadDutADCs()
 
