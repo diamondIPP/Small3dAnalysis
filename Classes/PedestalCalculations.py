@@ -55,6 +55,7 @@ class PedestalCalculations:
         dut_ADC_is_seed_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
 
         # Temporary numpy arrays to create the ctype vectors for multiprocessing with shared memory for cmc calculations
+        dut_ADC_chs_cm_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
         dut_ADC_cm_all = np.zeros(self.settings.ana_events, dtype='float32')
         dut_ADC_mean_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='float32')
         dut_ADC_sigma_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='float32')
@@ -74,12 +75,13 @@ class PedestalCalculations:
         del tel_ADC_mean_all, tel_ADC_sigma_all, tel_ADC_is_hit_all, tel_ADC_is_seed_all, dut_ADC_mean_all, dut_ADC_sigma_all, dut_ADC_is_hit_all, dut_ADC_is_seed_all
 
         # The ctype vectors that will be shared in the multiprocessing for cmc calculations
+        self.dut_ADC_chs_cm_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_chs_cm_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_chs_cm_all))
         self.dut_ADC_cm_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_cm_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_cm_all))
         self.dut_ADC_mean_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_mean_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_mean_cmc_all))
         self.dut_ADC_sigma_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_sigma_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_sigma_cmc_all))
         self.dut_ADC_is_hit_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all))
         self.dut_ADC_is_seed_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_seed_cmc_all))
-        del dut_ADC_cm_all, dut_ADC_mean_cmc_all, dut_ADC_sigma_cmc_all, dut_ADC_is_hit_cmc_all, dut_ADC_is_seed_cmc_all
+        del dut_ADC_chs_cm_all, dut_ADC_cm_all, dut_ADC_mean_cmc_all, dut_ADC_sigma_cmc_all, dut_ADC_is_hit_cmc_all, dut_ADC_is_seed_cmc_all
 
         # ctype vectors with all the ADC events for telescope and dut. The each process will read from this vectors
         self.tel_ADC_all_mp = self.LoadTelescopeADCs()
@@ -118,16 +120,20 @@ class PedestalCalculations:
                 if it == len(row) - 1:
                     print 'Calculating pedestals for', device, '. The progress is shown below:'
                     if device.startswith('tel'):
-                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, True, self.tel_ADC_all_mp, self.tel_ADC_mean_all_mp, self.tel_ADC_sigma_all_mp, self.tel_ADC_is_hit_all_mp, self.tel_ADC_is_seed_all_mp, self.dic_device_to_pos[device])
+                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, True, self.tel_ADC_all_mp, self.tel_ADC_mean_all_mp, self.tel_ADC_sigma_all_mp, self.tel_ADC_is_hit_all_mp, self.tel_ADC_is_seed_all_mp,
+                                                           None, None, None, None, None, None, self.dic_device_to_pos[device])
                     else:
-                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, True, self.dut_ADC_all_mp, self.dut_ADC_mean_all_mp, self.dut_ADC_sigma_all_mp, self.dut_ADC_is_hit_all_mp, self.dut_ADC_is_seed_all_mp, -1)
+                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, True, self.dut_ADC_all_mp, self.dut_ADC_mean_all_mp, self.dut_ADC_sigma_all_mp, self.dut_ADC_is_hit_all_mp, self.dut_ADC_is_seed_all_mp,
+                                                           self.dut_ADC_chs_cm_all_mp, self.dut_ADC_cm_all_mp, self.dut_ADC_mean_cmc_all_mp, self.dut_ADC_sigma_cmc_all_mp, self.dut_ADC_is_hit_cmc_all_mp, self.dut_ADC_is_seed_cmc_all_mp, -1)
 
                 else:
                     print 'Calculating pedestals for', device
                     if device.startswith('tel'):
-                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, False, self.tel_ADC_all_mp, self.tel_ADC_mean_all_mp, self.tel_ADC_sigma_all_mp, self.tel_ADC_is_hit_all_mp, self.tel_ADC_is_seed_all_mp, self.dic_device_to_pos[device])
+                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, False, self.tel_ADC_all_mp, self.tel_ADC_mean_all_mp, self.tel_ADC_sigma_all_mp, self.tel_ADC_is_hit_all_mp, self.tel_ADC_is_seed_all_mp,
+                                                           None, None, None, None, None, None, self.dic_device_to_pos[device])
                     else:
-                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, False, self.dut_ADC_all_mp, self.dut_ADC_mean_all_mp, self.dut_ADC_sigma_all_mp, self.dut_ADC_is_hit_all_mp, self.dut_ADC_is_seed_all_mp, -1)
+                        temp = PedestalDeviceCalculations2('{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), device, False, self.dut_ADC_all_mp, self.dut_ADC_mean_all_mp, self.dut_ADC_sigma_all_mp, self.dut_ADC_is_hit_all_mp, self.dut_ADC_is_seed_all_mp,
+                                                           self.dut_ADC_chs_cm_all_mp, self.dut_ADC_cm_all_mp, self.dut_ADC_mean_cmc_all_mp, self.dut_ADC_sigma_cmc_all_mp, self.dut_ADC_is_hit_cmc_all_mp, self.dut_ADC_is_seed_cmc_all_mp, -1)
                 temp.start()
                 self.device_ped_process.append(temp)
             for j in self.device_ped_process:

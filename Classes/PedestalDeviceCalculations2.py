@@ -19,7 +19,7 @@ __author__ = 'DA'
 
 
 class PedestalDeviceCalculations2(mp.Process):
-    def __init__(self, settings_bin_path, device, show_progressbar, input_adc_array, out_array_mean, out_array_sigma, out_array_is_hit, out_array_is_seed, det_index):
+    def __init__(self, settings_bin_path, device, show_progressbar, input_adc_array, out_array_mean, out_array_sigma, out_array_is_hit, out_array_is_seed, out_array_chs_cm, out_array_cm, out_array_mean_cmc, out_array_sigma_cmc, out_array_is_hit_cmc, out_array_is_seed_cmc, det_index):
         mp.Process.__init__(self)
         print 'Creating PedestalCalculations instance'
         self.show_pb = show_progressbar
@@ -43,7 +43,6 @@ class PedestalDeviceCalculations2(mp.Process):
         self.utils = Utils()
         self.dest_path_stem = self.out_dir + '/' + self.sub_dir + '/' + str(self.run_no) + '/' + self.device
 
-
         self.read_branch = self.raw_tel_branches_dic[0] if self.device == 'telx0' else self.raw_tel_branches_dic[1] if self.device == 'tely0' else self.raw_tel_branches_dic[2] if self.device == 'telx1' else self.raw_tel_branches_dic[3] if self.device == 'tely1' else self.raw_tel_branches_dic[4] if self.device == 'telx2' else self.raw_tel_branches_dic[5] if self.device == 'tely2' else self.raw_tel_branches_dic[6] if self.device == 'telx3' else self.raw_tel_branches_dic[7] if self.device == 'tely3' else self.raw_dut_branch
         self.hit_factor = self.settings.clust_hit[0] if self.device == 'telx0' else self.settings.clust_hit[1] if self.device == 'tely0' else self.settings.clust_hit[2] if self.device == 'telx1' else self.settings.clust_hit[3] if self.device == 'tely1' else self.settings.clust_hit[4] if self.device == 'telx2' else self.settings.clust_hit[5] if self.device == 'tely2' else self.settings.clust_hit[6] if self.device == 'telx3' else self.settings.clust_hit[7] if self.device == 'tely3' else self.settings.clust_hit[8]
         self.seed_factor = self.settings.clust_seed[0] if self.device == 'telx0' else self.settings.clust_seed[1] if self.device == 'tely0' else self.settings.clust_seed[2] if self.device == 'telx1' else self.settings.clust_seed[3] if self.device == 'tely1' else self.settings.clust_seed[4] if self.device == 'telx2' else self.settings.clust_seed[5] if self.device == 'tely2' else self.settings.clust_seed[6] if self.device == 'telx3' else self.settings.clust_seed[7] if self.device == 'tely3' else self.settings.clust_seed[8]
@@ -58,6 +57,7 @@ class PedestalDeviceCalculations2(mp.Process):
         self.device_ADC_is_seed = np.zeros((self.chs, self.ana_events), dtype='?')
 
         if self.do_cmc:
+            self.device_channels_cm = np.zeros((self.chs, self.ana_events), dtype='?')
             self.device_cm = np.zeros(self.ana_events, dtype='float32')
             self.device_ADC_mean_cmc = np.zeros((self.chs, self.ana_events), dtype='float32')
             self.device_ADC_sigma_cmc = np.zeros((self.chs, self.ana_events), dtype='float32')
@@ -85,17 +85,23 @@ class PedestalDeviceCalculations2(mp.Process):
         self.is_not_masked = np.ones(self.chs, '?') if self.device.startswith('tel') else np.array([ch not in set(self.settings.noisy) | set(self.settings.screened) for ch in xrange(self.chs)], '?')
 
         # global variables passed as reference for shared memory ctype vectors
-        global in_adc_array
+        global in_adc_array, out_array_m, out_array_s, out_array_is_h, out_array_is_s
         in_adc_array = input_adc_array
-        global out_array_m
         out_array_m = out_array_mean
-        global out_array_s
         out_array_s = out_array_sigma
-        global out_array_is_h
         out_array_is_h = out_array_is_hit
-        global out_array_is_s
         out_array_is_s = out_array_is_seed
         self.det_index = det_index
+
+        if self.do_cmc:
+            global out_array_chs_c, out_array_c, out_array_mean_cm, out_array_sigma_cm, out_array_is_hit_cm, out_array_is_seed_cm
+            out_array_chs_c = out_array_chs_cm
+            out_array_c = out_array_cm
+            out_array_mean_cm = out_array_mean_cmc
+            out_array_sigma_cm = out_array_sigma_cmc
+            out_array_is_hit_cm = out_array_is_hit_cmc
+            out_array_is_seed_cm = out_array_is_seed_cmc
+
         if self.device.startswith('tel'):
             self.device_ADC_all = np.ctypeslib.as_array(in_adc_array.get_obj())[self.det_index]
         else:
@@ -206,6 +212,7 @@ class PedestalDeviceCalculations2(mp.Process):
 
                 self.sigma_cmc = np.sqrt(np.subtract(self.mean_sq_cmc, np.power(self.mean_cmc, 2.0, dtype='float64'), dtype='float64'), dtype='float64')
 
+                self.device_channels_cm[:, ev] = condition_cm
                 self.device_cm[ev] = self.cm
                 self.device_ADC_mean_cmc[:, ev] = self.mean_cmc
                 self.device_ADC_sigma_cmc[:, ev] = self.sigma_cmc
@@ -230,6 +237,13 @@ class PedestalDeviceCalculations2(mp.Process):
             np.ctypeslib.as_array(out_array_s.get_obj())[:] = self.device_ADC_sigma
             np.ctypeslib.as_array(out_array_is_h.get_obj())[:] = self.device_ADC_is_hit.astype('uint8')
             np.ctypeslib.as_array(out_array_is_s.get_obj())[:] = self.device_ADC_is_seed.astype('uint8')
+            if self.do_cmc:
+                np.ctypeslib.as_array(out_array_chs_c.get_obj())[:] = self.device_channels_cm
+                np.ctypeslib.as_array(out_array_c.get_obj())[:] = self.device_cm
+                np.ctypeslib.as_array(out_array_mean_cm.get_obj())[:] = self.device_ADC_mean_cmc
+                np.ctypeslib.as_array(out_array_sigma_cm.get_obj())[:] = self.device_ADC_sigma_cmc
+                np.ctypeslib.as_array(out_array_is_hit_cm.get_obj())[:] = self.device_is_hit_cmc
+                np.ctypeslib.as_array(out_array_is_seed_cm.get_obj())[:] = self.device_is_seed_cmc
         if self.show_pb:
             print 'Done in', time.time() - t0, 'seconds'
 
@@ -286,6 +300,7 @@ class PedestalDeviceCalculations2(mp.Process):
             self.device_ADC_is_seed[:, :self.slide_leng] = condition_s
 
             if self.do_cmc:
+                self.device_channels_cm[:, :self.slide_leng] = condition_cm
                 device_signal_cmc = np.subtract(device_ADC, self.device_ADC_mean_cmc[:, :self.slide_leng], dtype='float64')
                 self.device_is_ped_cmc[:, :self.slide_leng] = condition_p_cmc
                 self.device_is_hit_cmc[:, :self.slide_leng] = condition_h_cmc
