@@ -54,6 +54,13 @@ class PedestalCalculations:
         dut_ADC_is_hit_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
         dut_ADC_is_seed_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
 
+        # Temporary numpy arrays to create the ctype vectors for multiprocessing with shared memory for cmc calculations
+        dut_ADC_cm_all = np.zeros(self.settings.ana_events, dtype='float32')
+        dut_ADC_mean_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='float32')
+        dut_ADC_sigma_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='float32')
+        dut_ADC_is_hit_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
+        dut_ADC_is_seed_cmc_all = np.zeros((self.settings.dutDetChs, self.settings.ana_events), dtype='uint8')
+
         # The ctype vectors that will be shared in the multiprocessing
         self.tel_ADC_mean_all_mp = mp.Array(np.ctypeslib.as_ctypes(tel_ADC_mean_all)._type_, np.ctypeslib.as_ctypes(tel_ADC_mean_all))
         self.tel_ADC_sigma_all_mp = mp.Array(np.ctypeslib.as_ctypes(tel_ADC_sigma_all)._type_, np.ctypeslib.as_ctypes(tel_ADC_sigma_all))
@@ -66,9 +73,13 @@ class PedestalCalculations:
         self.dut_ADC_is_seed_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_seed_all))
         del tel_ADC_mean_all, tel_ADC_sigma_all, tel_ADC_is_hit_all, tel_ADC_is_seed_all, dut_ADC_mean_all, dut_ADC_sigma_all, dut_ADC_is_hit_all, dut_ADC_is_seed_all
 
-        # The masked channels for CM calculation. Noisy and screened channels.
-        t1 = np.arange(self.settings.dutDetChs)
-
+        # The ctype vectors that will be shared in the multiprocessing for cmc calculations
+        self.dut_ADC_cm_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_cm_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_cm_all))
+        self.dut_ADC_mean_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_mean_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_mean_cmc_all))
+        self.dut_ADC_sigma_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_sigma_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_sigma_cmc_all))
+        self.dut_ADC_is_hit_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all))
+        self.dut_ADC_is_seed_cmc_all_mp = mp.Array(np.ctypeslib.as_ctypes(dut_ADC_is_hit_cmc_all)._type_, np.ctypeslib.as_ctypes(dut_ADC_is_seed_cmc_all))
+        del dut_ADC_cm_all, dut_ADC_mean_cmc_all, dut_ADC_sigma_cmc_all, dut_ADC_is_hit_cmc_all, dut_ADC_is_seed_cmc_all
 
         # ctype vectors with all the ADC events for telescope and dut. The each process will read from this vectors
         self.tel_ADC_all_mp = self.LoadTelescopeADCs()
