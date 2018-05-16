@@ -51,10 +51,10 @@ class PedestalDeviceCalculations2(mp.Process):
         self.chs = self.settings.dutDetChs if self.device == 'dut' else self.settings.telDetChs
 
         # Numpy arrays for the calculations
-        self.device_ADC = np.zeros((self.chs, self.slide_leng), dtype=self.np_type)
-        self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float32')
-        self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float32')
-        self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        # self.device_ADC = np.zeros((self.chs, self.slide_leng), dtype=self.np_type)
+        # self.device_ped = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        # self.device_sigma = np.zeros((self.chs, self.slide_leng), dtype='float32')
+        # self.device_signal = np.zeros((self.chs, self.slide_leng), dtype='float32')
         self.device_ADC_mean = np.zeros((self.chs, self.ana_events), dtype='float32')
         self.device_ADC_sigma = np.zeros((self.chs, self.ana_events), dtype='float32')
         self.device_ADC_is_ped = np.zeros((self.chs, self.ana_events), dtype='?')
@@ -195,41 +195,41 @@ class PedestalDeviceCalculations2(mp.Process):
             print 'Done in', time.time() - t0, 'seconds'
 
     def CalculateStartingPedestals(self):
-        self.device_ADC = self.device_ADC_all[:, :self.slide_leng]
+        device_ADC = self.device_ADC_all[:, :self.slide_leng]
 
-        for ch, value in enumerate(self.device_ADC.mean(1, dtype='float64')):
+        for ch, value in enumerate(device_ADC.mean(1, dtype='float64')):
             self.device_ADC_mean[ch, :self.slide_leng] = value
-        for ch, value in enumerate(self.device_ADC.std(1, dtype='float64')):
+        for ch, value in enumerate(device_ADC.std(1, dtype='float64')):
             self.device_ADC_sigma[ch, :self.slide_leng] = value
-        for ch in xrange(self.chs):
-            self.device_ped[ch].fill(self.device_ADC_mean[ch, 0])
-            self.device_sigma[ch].fill(self.device_ADC_sigma[ch, 0])
+        # for ch in xrange(self.chs):
+        #     self.device_ped[ch].fill(self.device_ADC_mean[ch, 0])
+        #     self.device_sigma[ch].fill(self.device_ADC_sigma[ch, 0])
 
         if self.do_cmc:
             not_masked_array = np.zeros((self.chs, self.slide_leng), '?')
             for ch in self.is_not_masked:
                 not_masked_array[ch].fill(True)
-            self.device_cm[:self.slide_leng] = np.array([np.extract(not_masked_array[:, ev], self.device_ADC[:, ev]) for ev in xrange(self.slide_leng)]).T.mean(axis=0, dtype='float64')
+            self.device_cm[:self.slide_leng] = np.array([np.extract(not_masked_array[:, ev], device_ADC[:, ev]) for ev in xrange(self.slide_leng)]).T.mean(axis=0, dtype='float64')
             cm_array = np.array([self.device_cm[:self.slide_leng] for ch in xrange(self.chs)], 'float32')
-            device_ADC_cmc = np.subtract(self.device_ADC, cm_array, dtype='float64')
+            device_ADC_cmc = np.subtract(device_ADC, cm_array, dtype='float64')
             for ch, value in enumerate(device_ADC_cmc.mean(axis=1, dtype='float64')):
                 self.device_ADC_mean_cmc[ch, :self.slide_leng] = value
             for ch, value in enumerate(device_ADC_cmc.std(axis=1, dtype='float64')):
                 self.device_ADC_sigma_cmc[ch, :self.slide_leng] = value
             device_signal_cmc = device_ADC_cmc - self.device_ADC_mean_cmc[:, :self.slide_leng]
 
-        self.device_signal = self.device_ADC - self.device_ped
+        device_signal = device_ADC - self.device_ADC_mean[:, :self.slide_leng]
         for it in xrange(7):
-            condition_p = self.device_signal < self.hit_factor * self.device_sigma
-            condition_h = np.bitwise_and(self.hit_factor * self.device_sigma <= self.device_signal, self.device_signal < self.seed_factor * self.device_sigma)
+            condition_p = device_signal < np.multiply(self.hit_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64')
+            condition_h = np.bitwise_and(np.multiply(self.hit_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64') <= device_signal, device_signal < np.multiply(self.seed_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64'))
             condition_s = np.bitwise_and(np.bitwise_not(condition_p), np.bitwise_not(condition_h))
-            adc_cond = [np.extract(condition_p[ch], self.device_ADC[ch]) for ch in xrange(self.chs)]
+            adc_cond = [np.extract(condition_p[ch], device_ADC[ch]) for ch in xrange(self.chs)]
 
             if self.do_cmc:
-                condition_cm = np.bitwise_and((device_signal_cmc < np.multiply(self.settings.cm_cut, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64')), not_masked_array)
+                condition_cm = np.bitwise_and((abs(device_signal_cmc) < np.multiply(self.settings.cm_cut, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64')), not_masked_array)
                 self.device_cm[:self.slide_leng] = np.array([np.extract(condition_cm[:, ev], device_ADC_cmc[:, ev]) for ev in xrange(self.slide_leng)]).T.mean(axis=0, dtype='float64')
                 cm_array = np.array([self.device_cm[:self.slide_leng] for ch in xrange(self.chs)], 'float32')
-                device_ADC_cmc = np.subtract(self.device_ADC, cm_array, dtype='float64')
+                device_ADC_cmc = np.subtract(device_ADC, cm_array, dtype='float64')
                 device_signal_cmc = np.subtract(device_ADC_cmc, self.device_ADC_mean_cmc[:, :self.slide_leng], dtype='float64')
                 condition_p_cmc = device_signal_cmc < np.multiply(self.hit_factor, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64')
                 condition_h_cmc = np.bitwise_and(np.multiply(self.hit_factor, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64') <= device_signal_cmc, device_signal_cmc < np.multiply(self.seed_factor, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64'))
@@ -238,22 +238,22 @@ class PedestalDeviceCalculations2(mp.Process):
 
             # for ch, (adc_cond_i, adc_cond_cmc_i) in enumerate(zip(adc_cond, adc_cond_cmc)):
             for ch in xrange(self.chs):
-                self.device_ADC_mean[ch].fill(adc_cond[ch].mean(dtype='float64'))
-                self.device_ADC_sigma[ch].fill(adc_cond[ch].std(dtype='float64'))
-                self.device_ped[ch].fill(adc_cond[ch].mean(dtype='float64'))
-                self.device_sigma[ch].fill(adc_cond[ch].std(dtype='float64'))
+                self.device_ADC_mean[ch, :self.slide_leng].fill(adc_cond[ch].mean(dtype='float64'))
+                self.device_ADC_sigma[ch, :self.slide_leng].fill(adc_cond[ch].std(dtype='float64'))
+                # self.device_ped[ch].fill(adc_cond[ch].mean(dtype='float64'))
+                # self.device_sigma[ch].fill(adc_cond[ch].std(dtype='float64'))
 
                 if self.do_cmc:
                     self.device_ADC_mean_cmc[ch, :self.slide_leng].fill(adc_cond_cmc[ch].mean(dtype='float64'))
                     self.device_ADC_sigma_cmc[ch, :self.slide_leng].fill(adc_cond_cmc[ch].std(dtype='float64'))
 
-            self.device_signal = self.device_ADC - self.device_ped
+            device_signal = device_ADC - self.device_ADC_mean[:, :self.slide_leng]
             self.device_ADC_is_ped[:, :self.slide_leng] = condition_p
             self.device_ADC_is_hit[:, :self.slide_leng] = condition_h
             self.device_ADC_is_seed[:, :self.slide_leng] = condition_s
 
             if self.do_cmc:
-                device_signal_cmc = np.subtract(self.device_ADC, self.device_ADC_mean_cmc[:, :self.slide_leng], dtype='float64')
+                device_signal_cmc = np.subtract(device_ADC, self.device_ADC_mean_cmc[:, :self.slide_leng], dtype='float64')
                 self.device_is_ped_cmc[:, :self.slide_leng] = condition_p_cmc
                 self.device_is_hit_cmc[:, :self.slide_leng] = condition_h_cmc
                 self.device_is_seed_cmc[:, :self.slide_leng] = condition_s_cmc
@@ -263,7 +263,13 @@ class PedestalDeviceCalculations2(mp.Process):
         self.mean_sq = np.add(np.power(self.sigma, 2, dtype='float64'), np.power(self.mean, 2, dtype='float64'), dtype='float64')
         self.elem = self.device_ADC_is_ped[:, :self.slide_leng].sum(axis=1)
 
-        del self.device_ADC, self.device_sigma, self.device_ped, self.device_signal
+        if self.do_cmc:
+            self.mean_cmc = self.device_ADC_mean_cmc[:, self.slide_leng - 1]
+            self.sigma_cmc = self.device_ADC_sigma_cmc[:, self.slide_leng - 1]
+            self.mean_sq_cmc = np.add(np.power(self.sigma_cmc, 2, dtype='float64'), np.power(self.mean_cmc, 2, dtype='float64'), dtype='float64')
+            self.elem_cmc = self.device_is_ped_cmc[:, :self.slide_leng].sum(axis=1)
+            self.cm.fill(self.device_cm[self.slide_leng - 1])
+
 
         # def SaveArrays(self):
         #     if self.show_pb:
