@@ -183,7 +183,7 @@ class PedestalCalculations:
 
     def FillTree(self):
         print 'Filling tree...'
-        self.utils.CreateProgressBtar(self.settings.ana_events)
+        self.utils.CreateProgressBar(self.settings.ana_events)
         self.utils.bar.start()
         for ev in xrange(self.settings.ana_events):
             self.rootTree.GetEntry(ev)
