@@ -107,7 +107,6 @@ class PedestalDeviceCalculations2(mp.Process):
         else:
             self.device_ADC_all = np.ctypeslib.as_array(in_adc_array.get_obj())
 
-
     def LoadSettingsBinary(self, settings_path):
         if os.path.isfile(settings_path):
             with open(settings_path, 'rb') as fs:
@@ -176,7 +175,8 @@ class PedestalDeviceCalculations2(mp.Process):
                 adc_old_cmc = np.subtract(self.device_ADC_all[:, ev - self.slide_leng], self.device_cm[ev - self.slide_leng])
                 signal_new_cmc = np.subtract(adc_new, self.mean_cmc, dtype='float64')
                 condition_cm = np.bitwise_and((abs(signal_new_cmc) < np.multiply(self.settings.cm_cut, self.sigma_cmc, dtype='float64')), self.is_not_masked)
-                self.cm.fill(np.extract(condition_cm, signal_new_cmc).mean(dtype='float64'))
+                cm = np.extract(condition_cm, signal_new_cmc).mean(dtype='float64') if condition_cm.any() else 0
+                self.cm.fill(cm)
                 adc_new_cmc = np.subtract(adc_new, self.cm, dtype='float64')
                 signal_new_cmc = np.subtract(adc_new_cmc, self.mean_cmc, dtype='float64')
                 condition_p_cmc = signal_new_cmc < np.multiply(self.hit_factor, self.sigma_cmc, dtype='float64')
@@ -255,11 +255,13 @@ class PedestalDeviceCalculations2(mp.Process):
         for ch, value in enumerate(device_ADC.std(1, dtype='float64')):
             self.device_ADC_sigma[ch, :self.slide_leng] = value
 
+        device_signal = device_ADC - self.device_ADC_mean[:, :self.slide_leng]
+
         if self.do_cmc:
             not_masked_array = np.zeros((self.chs, self.slide_leng), '?')
-            for ch in self.is_not_masked:
-                not_masked_array[ch].fill(True)
-            self.device_cm[:self.slide_leng] = np.array([np.extract(not_masked_array[:, ev], device_ADC[:, ev]) for ev in xrange(self.slide_leng)]).T.mean(axis=0, dtype='float64')
+            for ch, val in enumerate(self.is_not_masked):
+                not_masked_array[ch].fill(val)
+            self.device_cm[:self.slide_leng] = (np.array([np.extract(not_masked_array[:, ev], device_signal[:, ev]) for ev in xrange(self.slide_leng)]).T).mean(axis=0, dtype='float64')
             cm_array = np.array([self.device_cm[:self.slide_leng] for ch in xrange(self.chs)], 'float32')
             device_ADC_cmc = np.subtract(device_ADC, cm_array, dtype='float64')
             for ch, value in enumerate(device_ADC_cmc.mean(axis=1, dtype='float64')):
@@ -268,7 +270,6 @@ class PedestalDeviceCalculations2(mp.Process):
                 self.device_ADC_sigma_cmc[ch, :self.slide_leng] = value
             device_signal_cmc = device_ADC_cmc - self.device_ADC_mean_cmc[:, :self.slide_leng]
 
-        device_signal = device_ADC - self.device_ADC_mean[:, :self.slide_leng]
         for it in xrange(7):
             condition_p = device_signal < np.multiply(self.hit_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64')
             condition_h = np.bitwise_and(np.multiply(self.hit_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64') <= device_signal, device_signal < np.multiply(self.seed_factor,  self.device_ADC_sigma[:, :self.slide_leng], dtype='float64'))
@@ -277,7 +278,7 @@ class PedestalDeviceCalculations2(mp.Process):
 
             if self.do_cmc:
                 condition_cm = np.bitwise_and((abs(device_signal_cmc) < np.multiply(self.settings.cm_cut, self.device_ADC_sigma_cmc[:, :self.slide_leng], dtype='float64')), not_masked_array)
-                self.device_cm[:self.slide_leng] = np.array([np.extract(condition_cm[:, ev], device_ADC_cmc[:, ev]) for ev in xrange(self.slide_leng)]).T.mean(axis=0, dtype='float64')
+                self.device_cm[:self.slide_leng] = np.array([np.extract(condition_cm[:, ev], device_signal_cmc[:, ev]).mean(dtype='float64') for ev in xrange(self.slide_leng)])
                 cm_array = np.array([self.device_cm[:self.slide_leng] for ch in xrange(self.chs)], 'float32')
                 device_ADC_cmc = np.subtract(device_ADC, cm_array, dtype='float64')
                 device_signal_cmc = np.subtract(device_ADC_cmc, self.device_ADC_mean_cmc[:, :self.slide_leng], dtype='float64')
@@ -332,7 +333,6 @@ def main():
         ExitMessage('device must be "dut" or "telx#" or "tely#". Exiting...', os.EX_IOERR)
     do_pb = bool(options.progressbar)
     z = PedestalDeviceCalculations2(settings_bin_path=settings_bin_path, device=device, show_progressbar=do_pb)
-    # ipdb.set_trace()
 
 
 if __name__ == '__main__':
