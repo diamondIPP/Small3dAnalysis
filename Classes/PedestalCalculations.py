@@ -30,7 +30,7 @@ class PedestalCalculations:
         self.num_parallel = self.settings.num_parallel
         self.slide_leng = self.settings.sliding_length
         self.ana_dir = self.settings.analysis_path
-        self.ped_branches = ['silHitChs', 'silSeedChs', 'silPedestalMeanSil', 'silPedestalSigmaSil', 'diaHitChs', 'diaSeedChs', 'diaPedestalMean', 'diaPedestalSigma', 'diaCmChs', 'diaCm', 'diaHitChsCmc', 'diaSeedChsCmc', 'diaPedestalMeanCmc', 'diaPedestalSigmaCmc']
+        self.ped_branches = ['silHitChs', 'silSeedChs', 'silPedestalMean', 'silPedestalSigma', 'diaHitChs', 'diaSeedChs', 'diaPedestalMean', 'diaPedestalSigma', 'diaCmChs', 'diaCm', 'diaHitChsCmc', 'diaSeedChsCmc', 'diaPedestalMeanCmc', 'diaPedestalSigmaCmc']
         self.has_ped_branch = {branch: CheckBranchExistence('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), tree_name=self.tree_name, branch=branch) for branch in self.ped_branches}
         self.do_pedestal_calculations = not np.all(self.has_ped_branch.values())
         self.raw_tel_branches = ['D0X_ADC', 'D0Y_ADC', 'D1X_ADC', 'D1Y_ADC', 'D2X_ADC', 'D2Y_ADC', 'D3X_ADC', 'D3Y_ADC']
@@ -120,7 +120,7 @@ class PedestalCalculations:
 
     def LoadDutADCs(self):
         self.rootFile, self.rootTree = Open_RootFile_Load_Tree('{d}/{s}/{r}/{f}.root'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), treename=self.tree_name, mode='READ')
-        self.rootTree.SetEstimate(256 * self.rootTree.GetEntries())
+        # self.rootTree.SetEstimate(256 * self.rootTree.GetEntries())
         time0 = time.time()
         print 'Getting all events for DUT...', ;
         sys.stdout.flush()
@@ -167,8 +167,8 @@ class PedestalCalculations:
         print 'Setting branches in tree...', ; sys.stdout.flush()
         self.b1 = self.rootTree.Branch('silHitChs', self.tel_ADC_is_hit, 'silHitChs[{ndet}][{chs}]/O'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
         self.b2 = self.rootTree.Branch('silSeedChs', self.tel_ADC_is_seed, 'silSeedChs[{ndet}][{chs}]/O'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
-        self.b3 = self.rootTree.Branch('silPedestalMeanSil', self.tel_ADC_mean, 'silPedestalMean[{ndet}][{chs}]/F'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
-        self.b4 = self.rootTree.Branch('silPedestalSigmaSil', self.tel_ADC_sigma, 'silPedestalSigma[{ndet}][{chs}]/F'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
+        self.b3 = self.rootTree.Branch('silPedestalMean', self.tel_ADC_mean, 'silPedestalMean[{ndet}][{chs}]/F'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
+        self.b4 = self.rootTree.Branch('silPedestalSigma', self.tel_ADC_sigma, 'silPedestalSigma[{ndet}][{chs}]/F'.format(ndet=self.settings.telDetectors, chs=self.settings.telDetChs))
         self.b5 = self.rootTree.Branch('diaHitChs', self.dut_ADC_is_hit, 'diaHitChs[{chs}]/O'.format(chs=self.settings.dutDetChs))
         self.b6 = self.rootTree.Branch('diaSeedChs', self.dut_ADC_is_seed, 'diaSeedChs[{chs}]/O'.format(chs=self.settings.dutDetChs))
         self.b7 = self.rootTree.Branch('diaPedestalMean', self.dut_ADC_mean, 'diaPedestalMean[{f}]/F'.format(f=self.settings.dutDetChs))
