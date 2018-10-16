@@ -5,6 +5,7 @@ sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!!
 from Settings import Settings
 import subprocess as subp
 from Utils import *
+import time
 
 __author__ = 'DA'
 
@@ -88,7 +89,7 @@ class Converter:
                     self.event_saver_processes.append(subp.Popen(['{ad}/RawEventSaver.py'.format(ad=self.ana_dir), '-s', '{d}/{s}/{r}/{f}.settings'.format(d=self.out_dir, s=self.sub_dir, r=self.run, f=self.file_name), '-j', str(job_i), '-p'], bufsize=-1, stdin=subp.PIPE, close_fds=True))
             for job_i in xrange(self.num_parallel):
                 while self.event_saver_processes[job_i].poll() is None:
-                    continue
+                    time.sleep(5)
                 CloseSubprocess(self.event_saver_processes[job_i], stdin=True, stdout=False)
                 print 'Done with events:', self.first_ev + job_i * self.num_events_per_job, '-', self.first_ev + (job_i + 1) * self.num_events_per_job - 1
         self.MergeOutputFiles()
@@ -105,7 +106,7 @@ class Converter:
         print 'Merging files with the following command:', command, '...', ; sys.stdout.flush()
         self.merge_process = subp.Popen(command, bufsize=-1, stdin=subp.PIPE, stdout=subp.PIPE, close_fds=True)
         while self.merge_process.poll() is None:
-            continue
+            time.sleep(5)
         print 'Done'
         CloseSubprocess(self.merge_process, stdin=True, stdout=True)
         self.DeleteUnMergedFiles()

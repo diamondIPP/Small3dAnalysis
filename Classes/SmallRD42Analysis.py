@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/home/sandiego/py27/bin/python
 import os, logging, sys
 sys.path.append('/home/sandiego/Small3dAnalysis/Classes')  # TODO: HARDCODED!!!! NEEDED TO RUN IN BATCH!!! CHANGE ACCORDINGLY
 import ROOT as ro
