@@ -28,7 +28,7 @@ class RawEventReader:
         self.tel, self.dut = None, None
 
     def ReadRawEvent(self, eventNo):
-        filename = '{aip}/RUN_{r}_{p}.rz'.format(aip=self.raw_data_dir, r=self.run, p=int(eventNo/self.eventsPerFile))
+        filename = '{aip}/{r}/RUN_{r}_{p}.rz'.format(aip=self.raw_data_dir, r=self.run, p=int(eventNo/self.eventsPerFile))
         if self.current_rz_filename != filename:
             if self.current_rz_file:
                 self.current_rz_file.close()
@@ -58,18 +58,18 @@ class RawEventReader:
         self.DecodeDutDetectors()
 
     def DecodeTelescope(self):
-        self.D0X = [self.tel[i * 4 + 3] for i in xrange(self.telDetChs)]
-        self.D1X = [self.tel[i * 4 + 2] for i in xrange(self.telDetChs)]
-        self.D2X = [self.tel[i * 4 + 1] for i in xrange(self.telDetChs)]
-        self.D3X = [self.tel[i * 4] for i in xrange(self.telDetChs)]
-        self.D0Y = [self.tel[(self.telDetChs + i) * 4 + 3] for i in xrange(self.telDetChs)]
-        self.D1Y = [self.tel[(self.telDetChs + i) * 4 + 2] for i in xrange(self.telDetChs)]
-        self.D2Y = [self.tel[(self.telDetChs + i) * 4 + 1] for i in xrange(self.telDetChs)]
-        self.D3Y = [self.tel[(self.telDetChs + i) * 4] for i in xrange(self.telDetChs)]
+        self.D0X = [self.tel[i * 4 + 3] if self.tel[i * 4 + 3] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D1X = [self.tel[i * 4 + 2] if self.tel[i * 4 + 2] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D2X = [self.tel[i * 4 + 1] if self.tel[i * 4 + 1] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D3X = [self.tel[i * 4] if self.tel[i * 4] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D0Y = [self.tel[(self.telDetChs + i) * 4 + 3] if self.tel[(self.telDetChs + i) * 4 + 3] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D1Y = [self.tel[(self.telDetChs + i) * 4 + 2] if self.tel[(self.telDetChs + i) * 4 + 2] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D2Y = [self.tel[(self.telDetChs + i) * 4 + 1] if self.tel[(self.telDetChs + i) * 4 + 1] < 256 else 255 for i in xrange(self.telDetChs)]
+        self.D3Y = [self.tel[(self.telDetChs + i) * 4] if self.tel[(self.telDetChs + i) * 4] < 256 else 255 for i in xrange(self.telDetChs)]
 
     def DecodeDutDetectors(self):
-        self.Dut0 = [self.dut[i * 2 + 1] for i in xrange(self.dutDetChs)]
-        self.Dut1 = [self.dut[i * 2] for i in xrange(self.dutDetChs)]
+        self.Dut0 = [self.dut[i * 2 + 1] if self.dut[i * 2 + 1] < 4096 else 4095 for i in xrange(self.dutDetChs)]
+        self.Dut1 = [self.dut[i * 2] if self.dut[i * 2] < 4096 else 4095 for i in xrange(self.dutDetChs)]
 
     def GetTelPlane(self, det):
         return {0: self.D0X, 1: self.D0Y, 2: self.D1X, 3: self.D1Y, 4: self.D2X, 5: self.D2Y, 6: self.D3X, 7: self.D3Y}[det]
